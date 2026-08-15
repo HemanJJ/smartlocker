@@ -1,0 +1,6 @@
+# 執行時產生的本機狀態，不進版控
+codes.cache.csv
+pickups.queue
+remote_done.json
+__pycache__/
+*.pyc
