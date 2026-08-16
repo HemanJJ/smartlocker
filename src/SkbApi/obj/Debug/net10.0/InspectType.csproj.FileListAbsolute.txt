@@ -1,0 +1,6 @@
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/InspectType.csproj.AssemblyReference.cache
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/InspectType.GeneratedMSBuildEditorConfig.editorconfig
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/InspectType.AssemblyInfoInputs.cache
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/InspectType.AssemblyInfo.cs
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/InspectType.csproj.CoreCompileInputs.cache
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/InspectType.sourcelink.json
