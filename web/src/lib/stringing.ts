@@ -1,5 +1,5 @@
 import { getDb } from './db';
-import { pushMessage } from './line';
+import { pushMessage, getProfile } from './line';
 
 // ── 型別 ────────────────────────────────────────────────────────────────
 
@@ -34,6 +34,7 @@ export interface OrderItem {
   status: OrderStatus;
   paid: boolean;
   lineUserId: string;
+  lineName: string;
   customerName: string;
   note: string;
   currentSlot: number | null;
@@ -124,6 +125,7 @@ export function ensureStringingSchema(): Promise<void> {
           status VARCHAR(10) NOT NULL DEFAULT 'pending',
           paid BOOLEAN NOT NULL DEFAULT FALSE,
           line_user_id VARCHAR(255) NOT NULL DEFAULT '',
+          line_name VARCHAR(255) NOT NULL DEFAULT '',
           customer_name VARCHAR(100) NOT NULL DEFAULT '',
           note VARCHAR(255) NOT NULL DEFAULT '',
           current_slot INTEGER,
@@ -131,6 +133,8 @@ export function ensureStringingSchema(): Promise<void> {
           completed_at TIMESTAMPTZ
         )
       `;
+
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS line_name VARCHAR(255) NOT NULL DEFAULT ''`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS print_jobs (
@@ -214,6 +218,7 @@ function rowToOrder(row: any, modelOverride?: string): OrderItem {
     status: row.status,
     paid: Boolean(row.paid),
     lineUserId: row.line_user_id || '',
+    lineName: row.line_name || '',
     customerName: row.customer_name || '',
     note: row.note || '',
     currentSlot: row.current_slot == null ? null : Number(row.current_slot),
@@ -501,6 +506,11 @@ export async function bindCustomer(
   }
   if (!order.lineUserId) {
     await sql`UPDATE orders SET line_user_id = ${lineUserId} WHERE id = ${order.id}`;
+    // 抓客人 LINE 別名（顯示名稱）存起來，方便後台辨識
+    const profile = await getProfile(lineUserId);
+    if (profile?.displayName) {
+      await sql`UPDATE orders SET line_name = ${profile.displayName} WHERE id = ${order.id}`;
+    }
     const updated = await getOrderById(order.id);
     return { order: updated, boundNow: true, alreadyBoundOther: false };
   }

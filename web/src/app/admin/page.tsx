@@ -12,6 +12,8 @@ interface OrderItem {
   status: 'pending' | 'stringing' | 'ready' | 'done';
   paid: boolean;
   customerName: string;
+  lineUserId: string;
+  lineName: string;
   note: string;
   currentSlot: number | null;
   createdAt: string;
@@ -152,6 +154,12 @@ export default function AdminPage() {
                 {o.currentSlot != null && <> · 格號 <b>第 {o.currentSlot} 格</b></>}
                 {' · '}NT${o.price}
                 {o.customerName && <> · {o.customerName}</>}
+                {o.lineName && <span style={{ color: '#06C755' }}> · LINE：{o.lineName}</span>}
+                {o.lineUserId ? (
+                  <span style={{ color: '#06C755' }}> · 已綁定</span>
+                ) : (
+                  <span style={{ color: '#999' }}> · 未綁定 LINE</span>
+                )}
                 {o.note && <div>備註：{o.note}</div>}
               </div>
 

@@ -68,3 +68,19 @@ export async function pushMessage(
     return false;
   }
 }
+
+/** 取得使用者資料（顯示名稱/別名） */
+export async function getProfile(userId: string): Promise<{ displayName: string } | null> {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch(`${LINE_API}/profile/${userId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { displayName: string };
+  } catch (err: any) {
+    console.error('[LINE] 取得使用者資料異常:', err.message);
+    return null;
+  }
+}
