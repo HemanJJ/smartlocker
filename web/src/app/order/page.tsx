@@ -116,9 +116,8 @@ export default function OrderPage() {
         <div style={{ background: '#e8f8ee', border: '1px solid #bfeccd', borderRadius: 16, padding: 20, marginTop: 16, fontSize: 15, lineHeight: 1.7 }}>
           <div style={{ fontWeight: 700, color: '#06C755' }}>📱 綁定 LINE 收取件通知</div>
           <div style={{ marginTop: 4 }}>
-            請用 LINE 掃描加入好友 <b>{LINE_BOT_ID}</b>，
-            並把取件碼 <b>{result.pickupCode}</b> 傳給我們。
-            付款後將以 LINE 通知您取件。
+            加入好友 <b>{LINE_BOT_ID}</b> 後，把取件碼 <b>{result.pickupCode}</b> 傳給我們。
+            傳送後取件碼會<b>保留在你的 LINE 對話中</b>，付款完成後會自動通知你取件。
           </div>
           <a
             href={`https://line.me/R/ti/p/${LINE_BOT_ID}`}
