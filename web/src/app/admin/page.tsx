@@ -63,6 +63,7 @@ export default function AdminPage() {
 
   async function act(order: OrderItem, action: string) {
     if (action === 'complete' && !window.confirm(`確認客人已取件、完成訂單 ${order.orderNo}？`)) return;
+    if (action === 'cancel' && !window.confirm(`確定取消訂單 ${order.orderNo}？（會釋放格口並刪除，不可復原）`)) return;
     setBusyId(order.id);
     setError('');
     try {
@@ -177,6 +178,9 @@ export default function AdminPage() {
                   <ActionBtn onClick={() => act(o, 'complete')} disabled={busyId === o.id} color="#333" label="完成取件" />
                 )}
                 {o.status === 'done' && <span style={{ fontSize: 13, color: '#999' }}>已完成</span>}
+                {o.status !== 'done' && (
+                  <ActionBtn onClick={() => act(o, 'cancel')} disabled={busyId === o.id} color="#e5484d" label="取消訂單" />
+                )}
               </div>
             </div>
           ))}

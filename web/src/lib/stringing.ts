@@ -490,6 +490,19 @@ export async function transitionOrder(id: number, action: string): Promise<Order
   return updated;
 }
 
+/** 取消訂單：釋放格口並刪除訂單（print_jobs 由 CASCADE 刪除） */
+export async function cancelOrder(id: number): Promise<boolean> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT id, current_slot FROM orders WHERE id = ${id}`;
+  if (rows.length === 0) return false;
+  if (rows[0].current_slot != null) {
+    await sql`UPDATE locker_slots SET status = 'empty', order_id = NULL WHERE slot_no = ${Number(rows[0].current_slot)}`;
+  }
+  const del = await sql`DELETE FROM orders WHERE id = ${id} RETURNING id`;
+  return del.length > 0;
+}
+
 // ── 綁定客人 LINE（webhook 收到取件碼時）────────────────────────────────
 
 export async function bindCustomer(
