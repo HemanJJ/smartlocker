@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     for (const event of events) {
       // 加入好友：主動打招呼＋引導綁定（附快捷按鈕）
       if (event.type === 'follow' && event.replyToken) {
+        console.log(`[Webhook] 加入好友事件 (userId=${(event.source as any)?.userId || ''})`);
         await replyMessage(
           event.replyToken,
           [
