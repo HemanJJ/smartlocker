@@ -36,6 +36,11 @@ export default function OrderPage() {
   const [sessionCode, setSessionCode] = useState('');
   const [lineUserId, setLineUserId] = useState('');
   const [lineName, setLineName] = useState('');
+  const [steps, setSteps] = useState<string[]>([]);
+
+  function pushStep(msg: string) {
+    setSteps((prev) => [...prev.slice(-19), msg]);
+  }
 
   useEffect(() => {
     fetch('/api/strings')
@@ -51,16 +56,17 @@ export default function OrderPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
 
-    // 建立 kiosk 認證 session（取得 4 位認證碼）
+    // 建立 kiosk 認證 session
     fetch('/api/kiosk-session', { method: 'POST' })
       .then((r) => r.json())
-      .then((d) => { if (d.ok) setSessionCode(d.code); })
+      .then((d) => { if (d.ok) { setSessionCode(d.code); pushStep('建立認證 session：' + d.code); } })
       .catch(() => {});
   }, []);
 
-  // 輪詢認證狀態（客人加好友後傳 4 位認證碼 → 綁定 LINE）
+  // 輪詢認證狀態（客人加好友後點「認證」→ 綁定 LINE）
   useEffect(() => {
     if (!sessionCode) return;
+    pushStep('等待客人加好友並點「✅ 認證」…');
     const timer = setInterval(async () => {
       try {
         const r = await fetch(`/api/kiosk-session?code=${sessionCode}`);
@@ -68,6 +74,7 @@ export default function OrderPage() {
         if (d.ok && d.session?.linked) {
           setLineUserId(d.session.lineUserId);
           setLineName(d.session.lineName);
+          pushStep('✅ 已認證：' + (d.session.lineName || d.session.lineUserId));
           clearInterval(timer);
         }
       } catch {}
@@ -105,6 +112,7 @@ export default function OrderPage() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '下單失敗');
       setResult(data.order);
+      pushStep('下單成功 ' + data.order.orderNo + (lineUserId ? ' → 小票已推 LINE' : '（未認證，小票僅貼紙）'));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -179,15 +187,19 @@ export default function OrderPage() {
                 <span style={{ fontWeight: 400, color: '#555', marginLeft: 4 }}>— 寄件後電子小票會直接送到你的 LINE</span>
               </div>
             ) : (
-              <div>
-                <div style={{ fontWeight: 700 }}>0️⃣ LINE 認證（選填）</div>
-                <div style={{ color: '#555' }}>
-                  加好友 <b>{LINE_BOT_ID}</b> 後，傳送認證碼 <b>{sessionCode || '…'}</b> 給機器人，
-                  寄件後電子小票就會自動送到你的 LINE。
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <img
+                  src={`/api/qr?text=${encodeURIComponent(`https://line.me/R/ti/p/${LINE_BOT_ID}`)}&w=200`}
+                  alt="加好友 QR"
+                  style={{ width: 110, height: 110, borderRadius: 8, border: '1px solid #ddd', background: '#fff' }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700 }}>0️⃣ LINE 認證（選填）</div>
+                  <div style={{ color: '#555', fontSize: 14, marginTop: 4 }}>
+                    ① 掃左邊 QR 加好友 <b>{LINE_BOT_ID}</b>
+                    <br />② 在 LINE 對話點「<b>✅ 認證</b>」按鈕
+                  </div>
                 </div>
-                <a href={`https://line.me/R/ti/p/${LINE_BOT_ID}`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, padding: '8px 16px', background: '#06C755', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
-                  開啟 LINE 加好友
-                </a>
               </div>
             )}
           </div>
@@ -255,6 +267,16 @@ export default function OrderPage() {
           >
             {submitting ? '處理中…' : `確認下單 · NT$${selected.price}`}
           </button>
+
+          {/* 除錯監聽：狀態框 + 步驟 */}
+          <div style={{ marginTop: 20, background: '#1a1f2b', color: '#cfe3d2', borderRadius: 14, padding: 14, fontFamily: 'ui-monospace, monospace', fontSize: 13, lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 700, color: '#fff', marginBottom: 6 }}>🛠 除錯監聽</div>
+            <div>session：{sessionCode || '…'}</div>
+            <div>認證：{lineUserId ? `✅ ${lineName || '已綁定'}` : '未認證'}</div>
+            <div style={{ marginTop: 6, color: '#9ab' }}>
+              {steps.length ? steps.map((s, i) => <div key={i}>· {s}</div>) : '—'}
+            </div>
+          </div>
         </div>
       )}
     </div>

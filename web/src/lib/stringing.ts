@@ -564,6 +564,24 @@ export async function linkKioskSession(code: string, lineUserId: string, lineNam
   return r.length > 0;
 }
 
+/** 點「認證」→ 綁到最近 5 分鐘內、尚未綁定的 kiosk session（單機 kiosk 用） */
+export async function linkMostRecentSession(lineUserId: string, lineName: string): Promise<boolean> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`
+    SELECT code FROM kiosk_sessions
+    WHERE line_user_id = '' AND created_at > NOW() - INTERVAL '5 minutes'
+    ORDER BY id DESC LIMIT 1
+  `;
+  if (rows.length === 0) return false;
+  const r = await sql`
+    UPDATE kiosk_sessions SET line_user_id = ${lineUserId}, line_name = ${lineName}, linked_at = NOW()
+    WHERE code = ${rows[0].code} AND line_user_id = ''
+    RETURNING id
+  `;
+  return r.length > 0;
+}
+
 // ── 狀態流轉（員工後台）────────────────────────────────────────────────
 
 export async function transitionOrder(id: number, action: string): Promise<OrderItem> {

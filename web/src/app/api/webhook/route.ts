@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const event of events) {
-      // 加入好友：主動打招呼＋引導綁定（附快捷按鈕）
+      // 加入好友：主動打招呼＋引導（附快捷按鈕）
       if (event.type === 'follow' && event.replyToken) {
         console.log(`[Webhook] 加入好友事件 (userId=${(event.source as any)?.userId || ''})`);
         await replyMessage(
@@ -29,13 +29,13 @@ export async function POST(request: NextRequest) {
               type: 'text',
               text:
                 '歡迎加入羽拍有約！🏸\n\n' +
-                '傳送您的 6 位取件碼，我會幫您綁定訂單、查詢狀態，\n' +
-                '並在穿好且付款後通知您取件。',
+                '在 kiosk 寄拍？點下方「✅ 認證」完成登入。\n' +
+                '想查訂單？傳送您的 6 位取件碼。',
             },
           ],
           {
             items: [
-              { type: 'action', action: { type: 'message', label: '綁定取件', text: '綁定取件' } },
+              { type: 'action', action: { type: 'message', label: '✅ 認證', text: '認證' } },
               { type: 'action', action: { type: 'message', label: '查詢訂單', text: '查詢訂單' } },
             ],
           }
@@ -58,7 +58,24 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 客人傳 4 位認證碼 → kiosk 身份認證
+      // 客人點「認證」→ 綁到最近的 kiosk session（免記碼）
+      if (text === '認證' || text === '登入') {
+        const { linkMostRecentSession } = await import('@/lib/stringing');
+        const { getProfile } = await import('@/lib/line');
+        const profile = await getProfile(userId);
+        const ok = await linkMostRecentSession(userId, profile?.displayName || '');
+        await replyMessage(event.replyToken, [
+          {
+            type: 'text',
+            text: ok
+              ? `✅ 認證成功${profile?.displayName ? '（' + profile.displayName + '）' : ''}！請回到 kiosk 繼續下單，寄件後電子小票會送到這裡。`
+              : '⚠️ 找不到待認證的 kiosk，請先回到 kiosk 下單頁按重整再試。',
+          },
+        ]);
+        continue;
+      }
+
+      // 客人傳 4 位認證碼 → kiosk 身份認證（備援）
       const sessionReply = await handleSessionCode(text, userId);
       if (sessionReply) {
         await replyMessage(event.replyToken, [{ type: 'text', text: sessionReply }]);
