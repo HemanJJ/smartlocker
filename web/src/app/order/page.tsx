@@ -21,7 +21,7 @@ interface OrderItem {
   status: string;
 }
 
-const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@647ntnvu';
+const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
 
 export default function OrderPage() {
   const [strings, setStrings] = useState<StringItem[]>([]);

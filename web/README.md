@@ -1,6 +1,6 @@
 # smartlocker web — 羽拍穿線服務（原地取代租拍）
 
-Next.js 16 App Router 專案，部署在 Vercel + Neon PostgreSQL，LINE bot 為「迪飛羽球館 @647ntnvu」。
+Next.js 16 App Router 專案，部署在 Vercel + Neon PostgreSQL，LINE bot 為「羽拍有約 @014uppgb」。
 原「租拍／取件碼」業務已停止，本專案原地改為**穿線服務**（租拍的 `venues` / `pickup_codes` 表保留不動）。
 
 完整規格見 `/Users/defi/Desktop/projects/code/stringing/HANDOFF.md`。
@@ -47,7 +47,7 @@ kiosk 下單（選線種＋磅數） → 建立訂單 → 分派空格 → LINE 
 | `LINE_CHANNEL_SECRET` | LINE Channel secret |
 | `STAFF_LINE_USER_ID` | 員工 LINE userId（逗號分隔多人），新單通知推播到這裡 |
 | `LOCKER_SLOT_COUNT` | 格口數量（首次建表時種入），預設 22 |
-| `NEXT_PUBLIC_LINE_BOT_ID` | kiosk 頁顯示的加好友 ID，預設 `@647ntnvu` |
+| `NEXT_PUBLIC_LINE_BOT_ID` | kiosk 頁顯示的加好友 ID，預設 `@014uppgb` |
 | `OLLAMA_URL` / `OLLAMA_MODEL` | 選用，LINE 客服 fallback |
 
 ## 開發

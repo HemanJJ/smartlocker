@@ -548,6 +548,6 @@ async function notifyCustomerPickup(order: OrderItem): Promise<void> {
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot ?? '-'} 格\n\n` +
-    `請至迪飛羽球館輸入取件碼取件。`;
+    `請至羽拍有約（太平永成店）輸入取件碼取件。`;
   await pushMessage(order.lineUserId, [{ type: 'text', text }]);
 }

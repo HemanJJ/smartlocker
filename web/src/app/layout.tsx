@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "迪飛羽球館 · 穿線服務",
+  title: "羽拍有約 · 穿線服務",
   description: "羽拍穿線服務：kiosk 下單、員工後台、LINE 通知",
 };
 

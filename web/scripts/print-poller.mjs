@@ -41,7 +41,7 @@ async function generateLabel(job) {
   <text x="203" y="428" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" fill="#000">NT$${L.price}</text>
   <text x="203" y="478" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#000">SLOT ${L.slotNo}</text>
   <text x="203" y="540" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#777">${L.orderNo}</text>
-  <text x="203" y="575" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#777">迪飛羽球館 · 穿線</text>
+  <text x="203" y="575" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#777">羽拍有約 · 穿線</text>
 </svg>`;
   return sharp(Buffer.from(svg)).png().toBuffer();
 }

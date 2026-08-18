@@ -122,7 +122,7 @@ async function quickReply(userMessage: string): Promise<string> {
           {
             role: 'system',
             content:
-              '你是「迪飛羽球館」的 LINE 客服助理，名字叫小羽。回答只使用繁體中文，1-3 句話就好，語氣親切自然。不確定的不要亂編，就說「我幫您確認一下」。',
+              '你是「羽拍有約」的 LINE 客服助理，名字叫小羽。回答只使用繁體中文，1-3 句話就好，語氣親切自然。不確定的不要亂編，就說「我幫您確認一下」。',
           },
           { role: 'user', content: userMessage },
         ],
