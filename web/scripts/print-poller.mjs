@@ -89,8 +89,10 @@ async function loop() {
     } catch (e) {
       console.error('[poller] 錯誤:', e.message);
     }
+    if (process.env.ONCE) break;
     await new Promise((r) => setTimeout(r, POLL_INTERVAL));
   }
+  console.log('[poller] 本輪結束');
 }
 
 loop();
