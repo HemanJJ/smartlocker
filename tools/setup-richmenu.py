@@ -20,11 +20,11 @@ HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json
 RICH_MENU = {
     "size": {"width": 2500, "height": 1686},
     "selected": True,
-    "name": "羽拍有約穿線服務選單-v1",
+    "name": "羽拍有約主選單-v2",
     "chatBarText": "開啟選單",
     "areas": [
         {
-            "bounds": {"x": 0, "y": 140, "width": 1250, "height": 773},
+            "bounds": {"x": 0, "y": 140, "width": 1250, "height": 515},
             "action": {
                 "type": "uri",
                 "label": "穿線下單",
@@ -32,7 +32,15 @@ RICH_MENU = {
             }
         },
         {
-            "bounds": {"x": 1250, "y": 140, "width": 1250, "height": 773},
+            "bounds": {"x": 1250, "y": 140, "width": 1250, "height": 515},
+            "action": {
+                "type": "uri",
+                "label": "預訂場地",
+                "uri": "https://liff.line.me/1660947211-e5z12ax6"
+            }
+        },
+        {
+            "bounds": {"x": 0, "y": 655, "width": 1250, "height": 515},
             "action": {
                 "type": "message",
                 "label": "查詢訂單",
@@ -40,7 +48,15 @@ RICH_MENU = {
             }
         },
         {
-            "bounds": {"x": 0, "y": 913, "width": 1250, "height": 773},
+            "bounds": {"x": 1250, "y": 655, "width": 1250, "height": 515},
+            "action": {
+                "type": "uri",
+                "label": "我的訂位",
+                "uri": "https://difly-booking.vercel.app/bookings"
+            }
+        },
+        {
+            "bounds": {"x": 0, "y": 1170, "width": 1250, "height": 516},
             "action": {
                 "type": "message",
                 "label": "綁定取件",
@@ -48,7 +64,7 @@ RICH_MENU = {
             }
         },
         {
-            "bounds": {"x": 1250, "y": 913, "width": 1250, "height": 773},
+            "bounds": {"x": 1250, "y": 1170, "width": 1250, "height": 516},
             "action": {
                 "type": "message",
                 "label": "聯絡客服",
