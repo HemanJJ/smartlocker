@@ -104,8 +104,8 @@ def create():
 
     print("✅ 圖片上傳完成")
     print("→ 設為預設選單...")
-    r = requests.post(f"{API}/default", headers=HEADERS,
-                      json={"richMenuId": menu_id})
+    r = requests.post(f"https://api.line.me/v2/bot/user/all/richmenu/{menu_id}",
+                      headers=HEADERS)
     if r.status_code == 200:
         print("✅ 已設為預設 Rich Menu")
     else:
@@ -140,7 +140,8 @@ def delete_menu(menu_id):
 
 def set_default(menu_id):
     if not TOKEN: print("❌ 請設定 LINE_CHANNEL_ACCESS_TOKEN"); sys.exit(1)
-    r = requests.post(f"{API}/{menu_id}/default", headers=HEADERS)
+    r = requests.post(f"https://api.line.me/v2/bot/user/all/richmenu/{menu_id}",
+                      headers=HEADERS)
     if r.status_code == 200:
         print(f"✅ 已設為預設: {menu_id}")
     else:
