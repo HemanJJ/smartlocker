@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>格口模擬板 · 羽拍有約</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"Noto Sans TC",sans-serif; background:#1a1f2b; color:#e6e6e6; padding:20px; }
+  header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  h1 { font-size:20px; font-weight:700; }
+  .hint { font-size:13px; color:#9aa; }
+  .legend { display:flex; gap:14px; font-size:12px; color:#ccc; margin-bottom:14px; flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .dot { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(96px, 1fr)); gap:10px; }
+  .cell { border-radius:10px; padding:12px 8px; text-align:center; cursor:pointer; transition:.15s; border:2px solid #333; }
+  .cell .no { font-size:22px; font-weight:800; }
+  .cell .st { font-size:12px; margin-top:4px; }
+  .cell.locked { background:#0f2418; border-color:#06C755; color:#06C755; }
+  .cell.unlocked { background:#241f0f; border-color:#f5b301; color:#f5b301; }
+  .cell.open { background:#2a1214; border-color:#e5484d; color:#e5484d; }
+  .cell.locked .st::after { content:"鎖住"; }
+  .cell.unlocked .st::after { content:"已解鎖"; }
+  .cell.open .st::after { content:"門開"; }
+  #log { margin-top:16px; background:#12161f; border-radius:8px; padding:10px 12px; font-size:12px; color:#9ab; font-family:ui-monospace,monospace; max-height:140px; overflow:auto; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🗄️ 格口模擬板 · 羽拍有約（22 格）</h1>
+  <span class="hint" id="conn">連線中…</span>
+</header>
+
+<div class="legend">
+  <span><i class="dot" style="background:#06C755"></i>鎖住（門關）</span>
+  <span><i class="dot" style="background:#f5b301"></i>已解鎖</span>
+  <span><i class="dot" style="background:#e5484d"></i>門開</span>
+  <span style="color:#888">— 點擊格口可切換 開門/關門（模擬門磁）</span>
+</div>
+
+<div class="grid" id="grid"></div>
+<div id="log"></div>
+
+<script>
+const GRID = document.getElementById('grid');
+const CONN = document.getElementById('conn');
+const LOG = document.getElementById('log');
+
+function log(msg) {
+  const line = '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
+  LOG.textContent = line + LOG.textContent;
+  LOG.textContent = LOG.textContent.split('\n').slice(0, 40).join('\n');
+}
+
+async function fetchState() {
+  try {
+    const r = await fetch('/state');
+    const j = await r.json();
+    CONN.textContent = '已連線 · ' + j.cellCount + ' 格';
+    CONN.style.color = '#06C755';
+    render(j.cells);
+  } catch {
+    CONN.textContent = '斷線';
+    CONN.style.color = '#e5484d';
+  }
+}
+
+function render(cells) {
+  GRID.innerHTML = '';
+  for (const c of cells) {
+    const cls = c.door === 'open' ? 'open' : (c.power === 'on' ? 'unlocked' : 'locked');
+    const div = document.createElement('div');
+    div.className = 'cell ' + cls;
+    div.innerHTML = '<div class="no">' + c.no + '</div><div class="st"></div>';
+    div.onclick = () => toggle(c.no, c.door);
+    GRID.appendChild(div);
+  }
+}
+
+async function toggle(no, currentDoor) {
+  const path = currentDoor === 'open' ? '/close' : '/open';
+  try {
+    await fetch(path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ no }) });
+    log('格 ' + no + (currentDoor === 'open' ? ' 關門' : ' 開門（手動）'));
+    fetchState();
+  } catch (e) {
+    log('操作失敗：' + e.message);
+  }
+}
+
+fetchState();
+setInterval(fetchState, 500);
+</script>
+</body>
+</html>

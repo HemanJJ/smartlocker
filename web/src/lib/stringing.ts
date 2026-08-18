@@ -65,6 +65,14 @@ export interface PrintJobItem {
   doneAt: string | null;
 }
 
+export interface CellCommand {
+  id: number;
+  slotNo: number;
+  status: 'pending' | 'done';
+  createdAt: string;
+  doneAt: string | null;
+}
+
 // ── 線種種子（11 條，與 HANDOFF 價目表一致）────────────────────────────
 
 // model / gauge / feature / max_tension / price
@@ -147,11 +155,22 @@ export function ensureStringingSchema(): Promise<void> {
         )
       `;
 
+      await sql`
+        CREATE TABLE IF NOT EXISTS cell_commands (
+          id SERIAL PRIMARY KEY,
+          slot_no INTEGER NOT NULL,
+          status VARCHAR(10) NOT NULL DEFAULT 'pending',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          done_at TIMESTAMPTZ
+        )
+      `;
+
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_pickup_code ON orders(pickup_code)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_line_user_id ON orders(line_user_id)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_locker_slots_status ON locker_slots(status)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_print_jobs_status ON print_jobs(status)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_cell_commands_status ON cell_commands(status)`;
 
       // 種入 11 條線種（已存在則跳過，保留後續人工調整）
       await sql`
@@ -401,6 +420,9 @@ export async function createOrder(input: {
   });
   await sql`INSERT INTO print_jobs (order_id, label_data) VALUES (${orderId}, ${labelData})`;
 
+  // 開格指令（交拍：開空格讓客人放拍）
+  await queueOpenCell(slotNo);
+
   const order = rowToOrder(inserted[0], stringItem.model);
 
   // LINE 通知員工：新單
@@ -446,6 +468,43 @@ export async function markPrintJobDone(id: number): Promise<boolean> {
   return result.length > 0;
 }
 
+// ── 開格佇列（kiosk 輪詢後送 RS-485 開鎖）──────────────────────────────
+
+function rowToCellCommand(row: any): CellCommand {
+  return {
+    id: Number(row.id),
+    slotNo: Number(row.slot_no),
+    status: row.status,
+    createdAt: toIso(row.created_at),
+    doneAt: toIso(row.done_at),
+  };
+}
+
+/** 排入「開第 N 格」指令（kiosk 輪詢後執行） */
+export async function queueOpenCell(slotNo: number): Promise<void> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  await sql`INSERT INTO cell_commands (slot_no) VALUES (${slotNo})`;
+}
+
+export async function listCellCommands(status: 'pending' | 'done' = 'pending'): Promise<CellCommand[]> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM cell_commands WHERE status = ${status} ORDER BY id`;
+  return rows.map(rowToCellCommand);
+}
+
+export async function markCellCommandDone(id: number): Promise<boolean> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const result = await sql`
+    UPDATE cell_commands SET status = 'done', done_at = NOW()
+    WHERE id = ${id} AND status = 'pending'
+    RETURNING id
+  `;
+  return result.length > 0;
+}
+
 // ── 狀態流轉（員工後台）────────────────────────────────────────────────
 
 export async function transitionOrder(id: number, action: string): Promise<OrderItem> {
@@ -459,11 +518,15 @@ export async function transitionOrder(id: number, action: string): Promise<Order
 
   if (action === 'take') {
     if (status !== 'pending') throw new Error('只有「待收件」訂單可以取件');
+    // 開格取拍
+    if (order.currentSlot != null) await queueOpenCell(order.currentSlot);
     await releaseSlot(order.currentSlot);
     await sql`UPDATE orders SET status = 'stringing', current_slot = NULL WHERE id = ${id}`;
   } else if (action === 'return') {
     if (status !== 'stringing') throw new Error('只有「穿線中」訂單可以送回');
     const slotNo = await occupyEmptySlot(id);
+    // 開格放拍
+    await queueOpenCell(slotNo);
     await sql`UPDATE orders SET status = 'ready', current_slot = ${slotNo} WHERE id = ${id}`;
   } else if (action === 'pay') {
     await sql`UPDATE orders SET paid = TRUE WHERE id = ${id}`;

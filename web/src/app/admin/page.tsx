@@ -82,6 +82,26 @@ export default function AdminPage() {
     }
   }
 
+  async function openCell(order: OrderItem) {
+    if (order.currentSlot == null) return;
+    setBusyId(order.id);
+    setError('');
+    try {
+      const res = await fetch('/api/cell-commands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slotNo: order.currentSlot }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '開格失敗');
+      alert(`已排入「開第 ${order.currentSlot} 格」指令，kiosk 輪詢後會開鎖。`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const filtered = filter ? orders.filter((o) => o.status === filter) : orders;
   const counts = {
     pending: orders.filter((o) => o.status === 'pending').length,
@@ -178,6 +198,9 @@ export default function AdminPage() {
                   <ActionBtn onClick={() => act(o, 'complete')} disabled={busyId === o.id} color="#333" label="完成取件" />
                 )}
                 {o.status === 'done' && <span style={{ fontSize: 13, color: '#999' }}>已完成</span>}
+                {o.currentSlot != null && (
+                  <ActionBtn onClick={() => openCell(o)} disabled={busyId === o.id} color="#06C755" label={`開格（第 ${o.currentSlot} 格）`} />
+                )}
                 {o.status !== 'done' && (
                   <ActionBtn onClick={() => act(o, 'cancel')} disabled={busyId === o.id} color="#e5484d" label="取消訂單" />
                 )}
