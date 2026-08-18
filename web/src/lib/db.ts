@@ -1,6 +1,14 @@
 import { neon } from '@neondatabase/serverless';
 
+let dbOverride: any = null;
+
+/** 測試用：注入替代的 sql 函式（例如 PGlite），繞過 Neon 連線。 */
+export function __setDbOverride(fn: any): void {
+  dbOverride = fn;
+}
+
 export function getDb() {
+  if (dbOverride) return dbOverride;
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL not set');
   return neon(url);

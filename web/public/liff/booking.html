@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>預約租拍</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, "Noto Sans TC", sans-serif; background:#f5f5f5; color:#333; line-height:1.6; font-size:18px; }
+.header { background:linear-gradient(135deg,#06C755,#05a847); color:white; padding:20px; text-align:center; }
+.header h1 { font-size:26px; font-weight:600; }
+.container { max-width:480px; margin:0 auto; padding:16px; }
+.card { background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+.card h2 { font-size:20px; margin-bottom:12px; color:#06C755; }
+select, input { width:100%; padding:14px; font-size:18px; border:2px solid #ddd; border-radius:8px; margin-bottom:12px; }
+.btn { width:100%; padding:16px; border:none; border-radius:10px; font-size:20px; font-weight:600; cursor:pointer; }
+.btn-primary { background:#06C755; color:white; }
+.result-box { background:#e8f8ee; border:2px solid #c3e6d0; border-radius:12px; padding:24px; text-align:center; margin-top:16px; }
+.big-code { font-size:52px; font-weight:800; letter-spacing:6px; color:#06C755; margin:12px 0; }
+.loading { text-align:center; padding:40px; }
+.spinner { width:40px; height:40px; border:4px solid #e0e0e0; border-top-color:#06C755; border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.hint { font-size:14px; color:#999; margin-top:4px; }
+.demo-badge { background:#ff8; color:#c60; padding:4px 12px; border-radius:20px; font-size:14px; font-weight:600; display:inline-block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏸 預約租拍</h1>
+  <p>迪飛羽球館 · 智慧拍櫃</p>
+</div>
+
+<div class="container" id="app">
+  <div class="card">
+    <h2>📍 選擇分店</h2>
+    <select id="venueSelect">
+      <option value="">載入分店中...</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h2>📅 選擇時段</h2>
+    <label>日期</label>
+    <input type="date" id="dateInput">
+    <label>時段</label>
+    <select id="slotSelect">
+      <option value="08:00">08:00 - 10:00</option>
+      <option value="10:00">10:00 - 12:00</option>
+      <option value="12:00">12:00 - 14:00</option>
+      <option value="14:00">14:00 - 16:00</option>
+      <option value="16:00">16:00 - 18:00</option>
+      <option value="18:00">18:00 - 20:00</option>
+      <option value="20:00">20:00 - 22:00</option>
+    </select>
+    <label>格號 (1-22)</label>
+    <input type="number" id="cellInput" min="1" max="22" value="1">
+  </div>
+
+  <button class="btn btn-primary" id="btnGen">🔑 產生取件碼</button>
+
+  <div id="resultBox" style="display:none;"></div>
+  <div id="status"></div>
+</div>
+
+<script>
+var API = '';
+var isLine = false;
+var LINE_UID = "test_user_001";
+var venues = [];
+
+// 載入分店列表
+(function() {
+  fetch(API + '/api/venues').then(function(r) { return r.json(); }).then(function(data) {
+    if (data.ok && data.venues.length > 0) {
+      venues = data.venues;
+      var sel = document.getElementById('venueSelect');
+      sel.innerHTML = '';
+      data.venues.forEach(function(v) {
+        var opt = document.createElement('option');
+        opt.value = v.slug;
+        opt.textContent = v.name;
+        sel.appendChild(opt);
+      });
+    }
+  }).catch(function() {
+    // fallback: 預設店
+    document.getElementById('venueSelect').innerHTML = '<option value="df-a">迪飛羽球館 A 館</option>';
+  });
+
+  var d = document.getElementById('dateInput');
+  var t = new Date();
+  d.value = t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+  d.min = d.value;
+
+  if (typeof liff !== 'undefined') {
+    liff.init({ liffId: '1660947211-EAehh2nJ' }).then(function() {
+      if (!liff.isLoggedIn()) { liff.login(); return; }
+      isLine = true;
+      return liff.getProfile();
+    }).then(function(p) {
+      if (p) { LINE_UID = p.userId; }
+    }).catch(function() {});
+  }
+
+  document.getElementById('btnGen').onclick = function() {
+    var cell = document.getElementById('cellInput').value;
+    var date = document.getElementById('dateInput').value;
+    var slot = document.getElementById('slotSelect').value;
+    var venueSlug = document.getElementById('venueSelect').value;
+    var venueName = document.getElementById('venueSelect').selectedOptions[0]?.textContent || '';
+    var box = document.getElementById('resultBox');
+    var status = document.getElementById('status');
+
+    if (!venueSlug) { status.innerHTML = '<p style="color:#c33;">請選擇分店</p>'; return; }
+
+    status.innerHTML = '<div class="loading"><div class="spinner"></div><p>產生中...</p></div>';
+    box.style.display = 'none';
+
+    fetch(API + '/api/code/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cell: parseInt(cell), venueSlug: venueSlug, venue: venueName, lineUserId: LINE_UID, bookingDate: date, timeSlot: slot })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      status.innerHTML = '';
+      box.style.display = '';
+      if (data.ok) {
+        box.innerHTML = '<div class="result-box">' +
+          '<p class="demo-badge">' + (isLine ? '✅ LINE 連線' : '🔧 瀏覽器測試模式') + '</p>' +
+          '<p style="margin-top:12px;font-size:16px;color:#666;">' + (data.venue || venueName) + '</p>' +
+          '<p>取件碼</p>' +
+          '<div class="big-code">' + data.code + '</div>' +
+          '<p>第 ' + data.cell + ' 格</p>' +
+          '<p style="font-size:14px;color:#888;margin-top:8px;">有效至 ' + formatExp(data.expiry) + '</p>' +
+          (isLine ? '<p style="font-size:14px;color:#888;margin-top:8px;">✅ LINE 推播已發送</p>' :
+           '<p style="font-size:14px;color:#c60;margin-top:8px;">⚠️ LINE 推播僅在 LINE 內有效</p>') +
+          '</div>';
+      } else {
+        box.innerHTML = '<div class="card" style="background:#fee;color:#c33;text-align:center;">產生失敗：' + (data.error || '?') + '</div>';
+      }
+    }).catch(function(err) {
+      status.innerHTML = '';
+      box.style.display = '';
+      box.innerHTML = '<div class="card" style="background:#fee;color:#c33;text-align:center;">連線失敗：' + err.message + '</div>';
+    });
+  };
+
+  function formatExp(s) {
+    if (!s) return '';
+    var d = new Date(s);
+    return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+})();
+</script>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+</body>
+</html>

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       const userId = (event.source as { userId?: string } | undefined)?.userId || '';
       console.log(`[Webhook] 處理: ${text} (userId=${userId})`);
 
-      // 我的ID：回傳使用者 userId（供店家設定通知用）
+      // 我的ID：回傳使用者 userId（供店家設定員工通知用）
       if (text === '我的ID' || text === '我的id' || text === 'id') {
         await replyMessage(event.replyToken, [
           { type: 'text', text: `你的 userId：${userId}` },
@@ -34,15 +34,15 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 取件碼查詢
-      const pickupReply = await handlePickupQuery(text);
-      if (pickupReply) {
-        console.log(`[取件碼] 回覆: ${pickupReply}`);
-        await replyMessage(event.replyToken, [{ type: 'text', text: pickupReply }]);
+      // 客人傳 6 位取件碼 → 綁定 LINE 並回報訂單狀態
+      const orderReply = await handleOrderCode(text, userId);
+      if (orderReply) {
+        console.log(`[穿線單] 回覆: ${orderReply.slice(0, 60)}`);
+        await replyMessage(event.replyToken, [{ type: 'text', text: orderReply }]);
         continue;
       }
 
-      // 非取件碼 → 快速 Ollama 或 fallback
+      // 其他訊息 → Ollama 客服或 fallback
       const reply = await quickReply(text);
       await replyMessage(event.replyToken, [{ type: 'text', text: reply }]);
     }
@@ -53,20 +53,33 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ status: 'ok' });
 }
 
-async function handlePickupQuery(text: string): Promise<string | null> {
+async function handleOrderCode(text: string, userId: string): Promise<string | null> {
   const trimmed = text.trim();
-  if (trimmed.length !== 6 || !/^\d{6}$/.test(trimmed)) return null;
+  const m = trimmed.match(/\d{6}/);
+  if (!m) return null;
 
-  const { validateCode } = await import('@/lib/pickup-code');
-  const cell = await validateCode(trimmed);
+  const code = m[0];
+  const { getOrderByPickupCode, bindCustomer, STATUS_LABEL } = await import('@/lib/stringing');
 
-  if (cell === -1) {
-    return `您查詢的取件碼 ${trimmed} 不存在或已過期。請確認是否輸入正確，或聯繫櫃檯人員協助。`;
+  const order = await getOrderByPickupCode(code);
+  if (!order) {
+    return `您查詢的取件碼 ${code} 不存在，請確認是否輸入正確，或洽櫃檯人員。`;
   }
-  if (cell === -2) {
-    return `取件碼 ${trimmed} 已經使用過了。若需要再次取件，請向櫃檯申請新的取件碼。`;
+
+  const bound = await bindCustomer(code, userId);
+
+  let reply = `🧵 訂單 ${order.orderNo}\n` + `線種：${order.stringModel}（${order.tension} lbs）\n` + `狀態：${STATUS_LABEL[order.status]}`;
+  if (order.status === 'ready' && order.currentSlot != null) {
+    reply += `\n格號：第 ${order.currentSlot} 格`;
   }
-  return `✅ 取件碼 ${trimmed} 有效！\n對應格號：第 ${cell} 格\n請至迪飛羽球館智慧拍櫃輸入取件碼取件。`;
+  if (bound.boundNow) {
+    reply += `\n\n✅ 已綁定您的 LINE，穿好並付款後將通知您取件。`;
+  } else if (bound.alreadyBoundOther) {
+    reply += `\n\n⚠️ 此單已綁定其他 LINE 帳號，如需協助請洽櫃檯。`;
+  } else {
+    reply += `\n\n（此 LINE 已綁定本單）`;
+  }
+  return reply;
 }
 
 async function quickReply(userMessage: string): Promise<string> {
@@ -91,7 +104,7 @@ async function quickReply(userMessage: string): Promise<string> {
           {
             role: 'system',
             content:
-              "你是「迪飛羽球館」的 LINE 客服助理，名字叫小羽。回答只使用繁體中文，1-3 句話就好，語氣親切自然。不確定的不要亂編，就說「我幫您確認一下」。",
+              '你是「迪飛羽球館」的 LINE 客服助理，名字叫小羽。回答只使用繁體中文，1-3 句話就好，語氣親切自然。不確定的不要亂編，就說「我幫您確認一下」。',
           },
           { role: 'user', content: userMessage },
         ],
@@ -109,5 +122,5 @@ async function quickReply(userMessage: string): Promise<string> {
 }
 
 function faqReply(): string {
-  return `您好！我是小羽 😊\n\n目前客服人員不在線上，您可以使用選單的「預約租拍」來產生取件碼，或來電詢問。`;
+  return `您好！我是小羽 😊\n\n您可以傳送您的 6 位取件碼，我會幫您查詢穿線訂單的狀態。其他問題歡迎來電詢問。`;
 }

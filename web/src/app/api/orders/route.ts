@@ -1,26 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUserOrders } from '@/lib/pickup-code';
+import { listOrders, listMineOrders, createOrder, type OrderStatus } from '@/lib/stringing';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const lineUserId = request.nextUrl.searchParams.get('lineUserId');
-  if (!lineUserId) {
-    return NextResponse.json({ ok: false, error: 'missing_lineUserId' }, { status: 400 });
+  try {
+    const lineUserId = request.nextUrl.searchParams.get('lineUserId');
+    const status = request.nextUrl.searchParams.get('status') as OrderStatus | null;
+
+    // 客人查自己的訂單（LIFF 用）
+    if (lineUserId) {
+      const orders = await listMineOrders(lineUserId);
+      return NextResponse.json({ ok: true, orders });
+    }
+
+    // 員工後台全列表（可依狀態篩選）
+    const orders = await listOrders(status || undefined);
+    return NextResponse.json({ ok: true, orders });
+  } catch (err: any) {
+    console.error('[Orders] 錯誤:', err);
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
+}
 
-  const orders = await getUserOrders(lineUserId);
-  const mapped = orders.map((o) => ({
-    code: o.code,
-    cell: o.cell,
-    venue: o.venue,
-    status: o.status,
-    expiry: new Date(o.expiryAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
-    createdAt: new Date(o.createdAt).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
-    bookingDate: o.bookingDate,
-    timeSlot: o.timeSlot,
-    price: o.price,
-  }));
-
-  return NextResponse.json({ ok: true, orders: mapped });
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const order = await createOrder({
+      stringId: Number(body.stringId),
+      tension: Number(body.tension),
+      lineUserId: body.lineUserId || '',
+      customerName: body.customerName || '',
+      note: body.note || '',
+    });
+    return NextResponse.json({ ok: true, order });
+  } catch (err: any) {
+    console.error('[Orders] 建立失敗:', err);
+    return NextResponse.json({ ok: false, error: err.message }, { status: 400 });
+  }
 }

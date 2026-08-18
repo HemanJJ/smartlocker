@@ -1,74 +1,200 @@
-import { getVenueReport } from '@/lib/pickup-code';
+'use client';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
+import { useCallback, useEffect, useState } from 'react';
 
-export default async function AdminReportPage() {
-  const rows = await getVenueReport();
-  const report = rows.map((r: any) => ({
-    name: r.name,
-    slug: r.slug,
-    defaultPrice: Number(r.default_price),
-    totalRentals: Number(r.total_rentals),
-    completedRentals: Number(r.completed_rentals),
-    revenue: Number(r.revenue),
-  }));
-  const totalRevenue = report.reduce((s, r) => s + r.revenue, 0);
-  const totalRentals = report.reduce((s, r) => s + r.totalRentals, 0);
-  const totalCompleted = report.reduce((s, r) => s + r.completedRentals, 0);
+interface OrderItem {
+  id: number;
+  orderNo: string;
+  stringModel: string;
+  tension: number;
+  price: number;
+  pickupCode: string;
+  status: 'pending' | 'stringing' | 'ready' | 'done';
+  paid: boolean;
+  customerName: string;
+  note: string;
+  currentSlot: number | null;
+  createdAt: string;
+  completedAt: string | null;
+}
 
-  const cell: React.CSSProperties = {
-    border: '1px solid #e5e7eb',
-    padding: '10px 14px',
-    textAlign: 'left',
+const STATUS_LABEL: Record<OrderItem['status'], string> = {
+  pending: '待收件',
+  stringing: '穿線中',
+  ready: '待取件',
+  done: '已完成',
+};
+
+const STATUS_COLOR: Record<OrderItem['status'], string> = {
+  pending: '#f59e0b',
+  stringing: '#3b82f6',
+  ready: '#06C755',
+  done: '#9ca3af',
+};
+
+export default function AdminPage() {
+  const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [summary, setSummary] = useState({ total: 0, empty: 0, occupied: 0 });
+  const [filter, setFilter] = useState<'' | OrderItem['status']>('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [oRes, sRes] = await Promise.all([fetch('/api/orders'), fetch('/api/slots')]);
+      const oData = await oRes.json();
+      const sData = await sRes.json();
+      if (!oData.ok) throw new Error(oData.error || '讀取訂單失敗');
+      setOrders(oData.orders);
+      if (sData.ok) setSummary(sData.summary);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function act(order: OrderItem, action: string) {
+    if (action === 'complete' && !window.confirm(`確認客人已取件、完成訂單 ${order.orderNo}？`)) return;
+    setBusyId(order.id);
+    setError('');
+    try {
+      const res = await fetch(`/api/orders/${order.id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '操作失敗');
+      await refresh();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const filtered = filter ? orders.filter((o) => o.status === filter) : orders;
+  const counts = {
+    pending: orders.filter((o) => o.status === 'pending').length,
+    stringing: orders.filter((o) => o.status === 'stringing').length,
+    ready: orders.filter((o) => o.status === 'ready').length,
+    done: orders.filter((o) => o.status === 'done').length,
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 16px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
-      <h1 style={{ fontSize: '1.6rem', fontWeight: 700 }}>🏸 分店營收報表</h1>
-      <p style={{ color: '#666', marginTop: 4 }}>羽拍有約 · 租拍系統（5 家分店）</p>
-
-      <div style={{ display: 'flex', gap: 16, margin: '24px 0' }}>
-        <Stat label="總營收" value={`NT$${totalRevenue.toLocaleString()}`} />
-        <Stat label="總租借數" value={String(totalRentals)} />
-        <Stat label="已完成取件" value={String(totalCompleted)} />
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 16px 64px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 700 }}>🧵 穿線訂單後台</h1>
+        <button onClick={refresh} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
+          ↻ 重新整理
+        </button>
       </div>
 
-      <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 14 }}>
-        <thead>
-          <tr style={{ background: '#f5f5f5' }}>
-            <th style={cell}>分店</th>
-            <th style={cell}>預設租金</th>
-            <th style={cell}>租借數</th>
-            <th style={cell}>已完成</th>
-            <th style={cell}>營收（已完成）</th>
-          </tr>
-        </thead>
-        <tbody>
-          {report.map((r) => (
-            <tr key={r.slug}>
-              <td style={cell}>{r.name}<div style={{ color: '#999', fontSize: 12 }}>{r.slug}</div></td>
-              <td style={cell}>NT${r.defaultPrice}</td>
-              <td style={cell}>{r.totalRentals}</td>
-              <td style={cell}>{r.completedRentals}</td>
-              <td style={{ ...cell, fontWeight: 700, color: '#06C755' }}>NT${r.revenue.toLocaleString()}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+        <Stat label="待收件" value={counts.pending} color="#f59e0b" />
+        <Stat label="穿線中" value={counts.stringing} color="#3b82f6" />
+        <Stat label="待取件" value={counts.ready} color="#06C755" />
+        <Stat label="已完成" value={counts.done} color="#9ca3af" />
+        <Stat label="空置格口" value={`${summary.empty} / ${summary.total}`} color="#06C755" />
+      </div>
 
-      <p style={{ marginTop: 16, color: '#999', fontSize: 12 }}>
-        營收以「已取件（used）」的租借計價；預設租金可在 venues 表調整。
-      </p>
+      {error && (
+        <div style={{ marginTop: 16, background: '#fee', border: '1px solid #fcc', borderRadius: 12, padding: 12, color: '#c33' }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+        {(['', 'pending', 'stringing', 'ready', 'done'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 20,
+              border: filter === f ? '2px solid #06C755' : '1px solid #ddd',
+              background: filter === f ? '#e8f8ee' : '#fff',
+              cursor: 'pointer',
+              fontSize: 14,
+            }}
+          >
+            {f === '' ? '全部' : STATUS_LABEL[f]}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p style={{ marginTop: 24, color: '#999' }}>載入中…</p>
+      ) : filtered.length === 0 ? (
+        <p style={{ marginTop: 24, color: '#999' }}>目前沒有訂單。</p>
+      ) : (
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map((o) => (
+            <div key={o.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: 16 }}>{o.orderNo}</span>
+                  <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>{o.stringModel} · {o.tension} lbs</span>
+                </div>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, background: STATUS_COLOR[o.status] + '22', color: STATUS_COLOR[o.status] }}>
+                  {STATUS_LABEL[o.status]}{o.paid ? ' · 已付款' : ''}
+                </span>
+              </div>
+
+              <div style={{ marginTop: 8, fontSize: 14, color: '#666', lineHeight: 1.7 }}>
+                取件碼 <b style={{ color: '#06C755', letterSpacing: 2 }}>{o.pickupCode}</b>
+                {o.currentSlot != null && <> · 格號 <b>第 {o.currentSlot} 格</b></>}
+                {' · '}NT${o.price}
+                {o.customerName && <> · {o.customerName}</>}
+                {o.note && <div>備註：{o.note}</div>}
+              </div>
+
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {o.status === 'pending' && (
+                  <ActionBtn onClick={() => act(o, 'take')} disabled={busyId === o.id} color="#3b82f6" label="取件（開始穿線）" />
+                )}
+                {o.status === 'stringing' && (
+                  <ActionBtn onClick={() => act(o, 'return')} disabled={busyId === o.id} color="#06C755" label="穿好送回（分派格口）" />
+                )}
+                {o.status === 'ready' && !o.paid && (
+                  <ActionBtn onClick={() => act(o, 'pay')} disabled={busyId === o.id} color="#f59e0b" label="標記已付款" />
+                )}
+                {o.status === 'ready' && o.paid && (
+                  <ActionBtn onClick={() => act(o, 'complete')} disabled={busyId === o.id} color="#333" label="完成取件" />
+                )}
+                {o.status === 'done' && <span style={{ fontSize: 13, color: '#999' }}>已完成</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
-    <div style={{ flex: 1, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '16px 18px' }}>
-      <div style={{ color: '#999', fontSize: 13 }}>{label}</div>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700, marginTop: 4 }}>{value}</div>
+    <div style={{ flex: '1 1 120px', minWidth: 110, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 14px' }}>
+      <div style={{ color: '#999', fontSize: 12 }}>{label}</div>
+      <div style={{ fontSize: '1.4rem', fontWeight: 700, color }}>{value}</div>
     </div>
+  );
+}
+
+function ActionBtn({ onClick, disabled, color, label }: { onClick: () => void; disabled: boolean; color: string; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{ padding: '8px 14px', background: color, color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1 }}
+    >
+      {label}
+    </button>
   );
 }
