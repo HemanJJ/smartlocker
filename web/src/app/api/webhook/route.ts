@@ -58,6 +58,13 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // 客人傳 4 位認證碼 → kiosk 身份認證
+      const sessionReply = await handleSessionCode(text, userId);
+      if (sessionReply) {
+        await replyMessage(event.replyToken, [{ type: 'text', text: sessionReply }]);
+        continue;
+      }
+
       // 客人傳 6 位取件碼 → 綁定 LINE 並回報訂單狀態
       const orderReply = await handleOrderCode(text, userId);
       if (orderReply) {
@@ -82,6 +89,24 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ status: 'ok' });
+}
+
+async function handleSessionCode(text: string, userId: string): Promise<string | null> {
+  const trimmed = text.trim();
+  const m = trimmed.match(/^\d{4}$/);
+  if (!m) return null;
+
+  const code = m[0];
+  const { linkKioskSession } = await import('@/lib/stringing');
+  const { getProfile } = await import('@/lib/line');
+  const profile = await getProfile(userId);
+  const name = profile?.displayName || '';
+
+  const ok = await linkKioskSession(code, userId, name);
+  if (!ok) {
+    return `認證碼 ${code} 無效或已使用，請回到 kiosk 重新整理取得新碼。`;
+  }
+  return `✅ 認證成功${name ? `（${name}）` : ''}！請回到 kiosk 繼續下單，寄件後電子小票會直接送到這裡。`;
 }
 
 async function handleOrderCode(text: string, userId: string): Promise<string | null> {

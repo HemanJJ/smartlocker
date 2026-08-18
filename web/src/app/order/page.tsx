@@ -33,6 +33,9 @@ export default function OrderPage() {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<OrderItem | null>(null);
+  const [sessionCode, setSessionCode] = useState('');
+  const [lineUserId, setLineUserId] = useState('');
+  const [lineName, setLineName] = useState('');
 
   useEffect(() => {
     fetch('/api/strings')
@@ -47,7 +50,30 @@ export default function OrderPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+
+    // 建立 kiosk 認證 session（取得 4 位認證碼）
+    fetch('/api/kiosk-session', { method: 'POST' })
+      .then((r) => r.json())
+      .then((d) => { if (d.ok) setSessionCode(d.code); })
+      .catch(() => {});
   }, []);
+
+  // 輪詢認證狀態（客人加好友後傳 4 位認證碼 → 綁定 LINE）
+  useEffect(() => {
+    if (!sessionCode) return;
+    const timer = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/kiosk-session?code=${sessionCode}`);
+        const d = await r.json();
+        if (d.ok && d.session?.linked) {
+          setLineUserId(d.session.lineUserId);
+          setLineName(d.session.lineName);
+          clearInterval(timer);
+        }
+      } catch {}
+    }, 1500);
+    return () => clearInterval(timer);
+  }, [sessionCode]);
 
   const selected = useMemo(
     () => strings.find((s) => s.id === selectedId) || null,
@@ -73,6 +99,7 @@ export default function OrderPage() {
           tension,
           customerName,
           note,
+          lineUserId,
         }),
       });
       const data = await res.json();
@@ -145,7 +172,27 @@ export default function OrderPage() {
 
       {!loading && strings.length > 0 && selected && (
         <div style={{ marginTop: 20 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>1️⃣ 選擇線種</div>
+          <div style={{ background: lineUserId ? '#e8f8ee' : '#fff7e0', border: `1px solid ${lineUserId ? '#bfeccd' : '#f0d48a'}`, borderRadius: 16, padding: 16, fontSize: 15, lineHeight: 1.6 }}>
+            {lineUserId ? (
+              <div style={{ fontWeight: 700, color: '#06C755' }}>
+                ✅ LINE 已認證{lineName ? `：${lineName}` : ''}
+                <span style={{ fontWeight: 400, color: '#555', marginLeft: 4 }}>— 寄件後電子小票會直接送到你的 LINE</span>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontWeight: 700 }}>0️⃣ LINE 認證（選填）</div>
+                <div style={{ color: '#555' }}>
+                  加好友 <b>{LINE_BOT_ID}</b> 後，傳送認證碼 <b>{sessionCode || '…'}</b> 給機器人，
+                  寄件後電子小票就會自動送到你的 LINE。
+                </div>
+                <a href={`https://line.me/R/ti/p/${LINE_BOT_ID}`} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8, padding: '8px 16px', background: '#06C755', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 }}>
+                  開啟 LINE 加好友
+                </a>
+              </div>
+            )}
+          </div>
+
+          <div style={{ fontWeight: 600, margin: '16px 0 8px' }}>1️⃣ 選擇線種</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {strings.map((s) => (
               <button

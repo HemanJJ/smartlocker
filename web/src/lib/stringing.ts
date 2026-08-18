@@ -165,6 +165,17 @@ export function ensureStringingSchema(): Promise<void> {
         )
       `;
 
+      await sql`
+        CREATE TABLE IF NOT EXISTS kiosk_sessions (
+          id SERIAL PRIMARY KEY,
+          code VARCHAR(4) NOT NULL UNIQUE,
+          line_user_id VARCHAR(255) NOT NULL DEFAULT '',
+          line_name VARCHAR(255) NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          linked_at TIMESTAMPTZ
+        )
+      `;
+
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_pickup_code ON orders(pickup_code)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_line_user_id ON orders(line_user_id)`;
@@ -426,6 +437,8 @@ export async function createOrder(input: {
 
   // LINE 通知員工：新單
   await notifyStaffNewOrder(order);
+  // 若已認證 LINE，寄件當下就推電子小票給客人
+  await notifyCustomerOrder(order);
 
   return order;
 }
@@ -502,6 +515,53 @@ export async function markCellCommandDone(id: number): Promise<boolean> {
     RETURNING id
   `;
   return result.length > 0;
+}
+
+// ── kiosk 認證 session（客人加 LINE 後傳認證碼 → 綁定身份）─────────────
+
+export interface KioskSession {
+  code: string;
+  linked: boolean;
+  lineUserId: string;
+  lineName: string;
+}
+
+export async function createKioskSession(): Promise<string> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  let code = '';
+  for (let i = 0; i < 100; i++) {
+    code = String(Math.floor(1000 + Math.random() * 9000));
+    const dup = await sql`SELECT 1 FROM kiosk_sessions WHERE code = ${code}`;
+    if (dup.length === 0) break;
+  }
+  if (!code) throw new Error('認證碼產生失敗');
+  await sql`INSERT INTO kiosk_sessions (code) VALUES (${code})`;
+  return code;
+}
+
+export async function getKioskSession(code: string): Promise<KioskSession | null> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM kiosk_sessions WHERE code = ${code}`;
+  if (rows.length === 0) return null;
+  return {
+    code: rows[0].code,
+    linked: Boolean(rows[0].line_user_id),
+    lineUserId: rows[0].line_user_id || '',
+    lineName: rows[0].line_name || '',
+  };
+}
+
+export async function linkKioskSession(code: string, lineUserId: string, lineName: string): Promise<boolean> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const r = await sql`
+    UPDATE kiosk_sessions SET line_user_id = ${lineUserId}, line_name = ${lineName}, linked_at = NOW()
+    WHERE code = ${code} AND line_user_id = ''
+    RETURNING id
+  `;
+  return r.length > 0;
 }
 
 // ── 狀態流轉（員工後台）────────────────────────────────────────────────
@@ -629,6 +689,22 @@ async function notifyStaffNewOrder(order: OrderItem): Promise<void> {
   for (const id of staffIds) {
     await pushMessage(id, [{ type: 'text', text }]);
   }
+}
+
+/** 寄件當下推電子小票給客人（若已認證 LINE） */
+async function notifyCustomerOrder(order: OrderItem): Promise<void> {
+  if (!order.lineUserId) return;
+  const text =
+    `🧾 羽拍有約 · 電子小票\n` +
+    `━━━━━━━━━━━━\n` +
+    `單號：${order.orderNo}\n` +
+    `線種：${order.stringModel}（${order.tension} lbs）\n` +
+    `費用：NT$${order.price}\n` +
+    `取件碼：${order.pickupCode}\n` +
+    `格號：第 ${order.currentSlot} 格\n` +
+    `━━━━━━━━━━━━\n` +
+    `已收到您的球拍，穿好付款後將通知取件。`;
+  await pushMessage(order.lineUserId, [{ type: 'text', text }]);
 }
 
 async function notifyCustomerPickup(order: OrderItem): Promise<void> {
