@@ -419,9 +419,8 @@ export async function createOrder(input: {
     slotNo,
   });
   await sql`INSERT INTO print_jobs (order_id, label_data) VALUES (${orderId}, ${labelData})`;
-
-  // 開格指令（交拍：開空格讓客人放拍）
-  await queueOpenCell(slotNo);
+  // 註：交拍的「開格」由 kiosk 統一輪詢程式在「印完貼紙後」接著開格（見 kiosk-poller.mjs），
+  //     這裡不再單獨排開格，避免與列印各自非同步造成順序錯亂。
 
   const order = rowToOrder(inserted[0], stringItem.model);
 
