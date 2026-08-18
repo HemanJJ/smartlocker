@@ -565,6 +565,15 @@ export async function cancelOrder(id: number): Promise<boolean> {
   return del.length > 0;
 }
 
+/** 清空全部訂單＋開格指令＋格口（測試用，一鍵歸零） */
+export async function clearAllOrders(): Promise<void> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  await sql`DELETE FROM orders`;
+  await sql`DELETE FROM cell_commands`;
+  await sql`UPDATE locker_slots SET status = 'empty', order_id = NULL`;
+}
+
 // ── 綁定客人 LINE（webhook 收到取件碼時）────────────────────────────────
 
 export async function bindCustomer(

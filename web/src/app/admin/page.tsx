@@ -102,6 +102,19 @@ export default function AdminPage() {
     }
   }
 
+  async function resetAll() {
+    if (!window.confirm('確定清空「全部訂單＋格口」？此動作不可復原（測試用）。')) return;
+    setError('');
+    try {
+      const res = await fetch('/api/admin/reset', { method: 'POST' });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '清空失敗');
+      await refresh();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   const filtered = filter ? orders.filter((o) => o.status === filter) : orders;
   const counts = {
     pending: orders.filter((o) => o.status === 'pending').length,
@@ -114,9 +127,14 @@ export default function AdminPage() {
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '24px 16px 64px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 700 }}>🧵 穿線訂單後台</h1>
-        <button onClick={refresh} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
-          ↻ 重新整理
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={refresh} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
+            ↻ 重新整理
+          </button>
+          <button onClick={resetAll} style={{ padding: '8px 16px', background: '#e5484d', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
+            🗑️ 清空測試資料
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
