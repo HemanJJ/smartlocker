@@ -99,16 +99,21 @@ async function handleOrderCode(text: string, userId: string): Promise<string | n
 
   const bound = await bindCustomer(code, userId);
 
-  let reply = `🧵 訂單 ${order.orderNo}\n` + `線種：${order.stringModel}（${order.tension} lbs）\n` + `取件碼：${code}\n` + `狀態：${STATUS_LABEL[order.status]}`;
-  if (order.status === 'ready' && order.currentSlot != null) {
-    reply += `\n格號：第 ${order.currentSlot} 格`;
-  }
+  let reply = `🧾 羽拍有約 · 電子小票\n` +
+    `━━━━━━━━━━━━\n` +
+    `單號：${order.orderNo}\n` +
+    `線種：${order.stringModel}（${order.tension} lbs）\n` +
+    `費用：NT$${order.price}\n` +
+    `取件碼：${code}\n` +
+    (order.currentSlot != null ? `格號：第 ${order.currentSlot} 格\n` : '') +
+    `狀態：${STATUS_LABEL[order.status]}\n` +
+    `━━━━━━━━━━━━`;
   if (bound.boundNow) {
-    reply += `\n\n✅ 已綁定您的 LINE！此取件碼已存於對話中，穿好並付款後將通知您取件。`;
+    reply += `\n✅ 已綁定！付款後將自動通知您取件。`;
   } else if (bound.alreadyBoundOther) {
-    reply += `\n\n⚠️ 此單已綁定其他 LINE 帳號，如需協助請洽櫃檯。`;
+    reply += `\n⚠️ 此單已綁定其他 LINE 帳號，如需協助請洽櫃檯。`;
   } else {
-    reply += `\n\n（此 LINE 已綁定本單）`;
+    reply += `\n（此 LINE 已綁定本單）`;
   }
   return reply;
 }
