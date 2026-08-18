@@ -30,6 +30,7 @@
 <header>
   <h1>🗄️ 格口模擬板 · 羽拍有約（22 格）</h1>
   <span class="hint" id="conn">連線中…</span>
+  <button onclick="resetAll()" style="padding:8px 14px;background:#e5484d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">🔄 重置全部</button>
 </header>
 
 <div class="legend">
@@ -75,6 +76,16 @@ function render(cells) {
     div.innerHTML = '<div class="no">' + c.no + '</div><div class="st"></div>';
     div.onclick = () => toggle(c.no, c.door);
     GRID.appendChild(div);
+  }
+}
+
+async function resetAll() {
+  try {
+    await fetch('/reset', { method: 'POST' });
+    log('重置全部（22 格全關門）');
+    fetchState();
+  } catch (e) {
+    log('重置失敗：' + e.message);
   }
 }
 

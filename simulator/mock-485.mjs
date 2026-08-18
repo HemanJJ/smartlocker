@@ -139,6 +139,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/reset' && req.method === 'POST') {
+    for (let i = 1; i <= CELL_COUNT; i++) { cells[i].door = 'closed'; cells[i].power = 'off'; }
+    console.log('[模擬板] 已重置（22 格全關門）');
+    send(200, { ok: true, reset: CELL_COUNT });
+    return;
+  }
+
   if ((url.pathname === '/open' || url.pathname === '/close') && req.method === 'POST') {
     const body = JSON.parse((await readBody(req)) || '{}');
     const no = Number(body.no);
