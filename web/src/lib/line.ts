@@ -9,10 +9,16 @@ export function verifySignature(body: string, signature: string | null): boolean
   return expected === signature;
 }
 
-/** 回覆 LINE 訊息（直接 HTTP call，不用 SDK） */
+export interface QuickReplyAction {
+  type: 'action';
+  action: { type: 'message'; label: string; text: string };
+}
+
+/** 回覆 LINE 訊息（直接 HTTP call，不用 SDK）；可選帶 quickReply 快捷按鈕 */
 export async function replyMessage(
   replyToken: string,
-  messages: Array<{ type: string; text: string }>
+  messages: Array<{ type: string; text: string }>,
+  quickReply?: { items: QuickReplyAction[] }
 ): Promise<boolean> {
   const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) {
@@ -20,17 +26,19 @@ export async function replyMessage(
     return false;
   }
   try {
+    const body: any = { replyToken, messages };
+    if (quickReply && quickReply.items.length) body.quickReply = quickReply;
     const res = await fetch(`${LINE_API}/message/reply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ replyToken, messages }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
-      const body = await res.text();
-      console.error(`[LINE] 回覆失敗 ${res.status}: ${body}`);
+      const text = await res.text();
+      console.error(`[LINE] 回覆失敗 ${res.status}: ${text}`);
     }
     return res.ok;
   } catch (err: any) {

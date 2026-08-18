@@ -19,17 +19,26 @@ export async function POST(request: NextRequest) {
     }
 
     for (const event of events) {
-      // 加入好友：主動打招呼＋引導綁定
+      // 加入好友：主動打招呼＋引導綁定（附快捷按鈕）
       if (event.type === 'follow' && event.replyToken) {
-        await replyMessage(event.replyToken, [
+        await replyMessage(
+          event.replyToken,
+          [
+            {
+              type: 'text',
+              text:
+                '歡迎加入羽拍有約！🏸\n\n' +
+                '傳送您的 6 位取件碼，我會幫您綁定訂單、查詢狀態，\n' +
+                '並在穿好且付款後通知您取件。',
+            },
+          ],
           {
-            type: 'text',
-            text:
-              '歡迎加入羽拍有約！🏸\n\n' +
-              '傳送您的 6 位取件碼，我會幫您綁定訂單、查詢狀態，\n' +
-              '並在穿好且付款後通知您取件。',
-          },
-        ]);
+            items: [
+              { type: 'action', action: { type: 'message', label: '綁定取件', text: '綁定取件' } },
+              { type: 'action', action: { type: 'message', label: '查詢訂單', text: '查詢訂單' } },
+            ],
+          }
+        );
         continue;
       }
 
