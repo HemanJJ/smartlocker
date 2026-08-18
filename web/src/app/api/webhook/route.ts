@@ -19,6 +19,20 @@ export async function POST(request: NextRequest) {
     }
 
     for (const event of events) {
+      // 加入好友：主動打招呼＋引導綁定
+      if (event.type === 'follow' && event.replyToken) {
+        await replyMessage(event.replyToken, [
+          {
+            type: 'text',
+            text:
+              '歡迎加入羽拍有約！🏸\n\n' +
+              '傳送您的 6 位取件碼，我會幫您綁定訂單、查詢狀態，\n' +
+              '並在穿好且付款後通知您取件。',
+          },
+        ]);
+        continue;
+      }
+
       if (event.type !== 'message' || event.message?.type !== 'text') continue;
       if (!event.replyToken) continue;
 
