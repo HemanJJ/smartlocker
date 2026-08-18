@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 1686" width="2500" height="1686">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#08D75A"/>
+      <stop offset="100%" stop-color="#05903C"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="2500" height="1686" fill="url(#bg)"/>
+
+  <!-- 上方品牌條 -->
+  <rect width="2500" height="140" fill="rgba(0,0,0,0.12)"/>
+  <text x="1250" y="95" text-anchor="middle" font-family="sans-serif" font-size="66" font-weight="800" fill="white">🏸 羽拍有約 · 穿線服務</text>
+
+  <!-- 分隔線 -->
+  <line x1="1250" y1="140" x2="1250" y2="1686" stroke="rgba(255,255,255,0.28)" stroke-width="6"/>
+  <line x1="0" y1="913" x2="2500" y2="913" stroke="rgba(255,255,255,0.28)" stroke-width="6"/>
+
+  <!-- 左上：穿線下單 -->
+  <g>
+    <text x="625" y="520" text-anchor="middle" font-family="sans-serif" font-size="150" fill="white">🧵</text>
+    <text x="625" y="720" text-anchor="middle" font-family="sans-serif" font-size="84" font-weight="700" fill="white">穿線下單</text>
+  </g>
+
+  <!-- 右上：查詢訂單 -->
+  <g>
+    <text x="1875" y="520" text-anchor="middle" font-family="sans-serif" font-size="150" fill="white">📋</text>
+    <text x="1875" y="720" text-anchor="middle" font-family="sans-serif" font-size="84" font-weight="700" fill="white">查詢訂單</text>
+  </g>
+
+  <!-- 左下：綁定取件 -->
+  <g>
+    <text x="625" y="1300" text-anchor="middle" font-family="sans-serif" font-size="150" fill="white">🔑</text>
+    <text x="625" y="1500" text-anchor="middle" font-family="sans-serif" font-size="84" font-weight="700" fill="white">綁定取件</text>
+  </g>
+
+  <!-- 右下：聯絡客服 -->
+  <g>
+    <text x="1875" y="1300" text-anchor="middle" font-family="sans-serif" font-size="150" fill="white">💬</text>
+    <text x="1875" y="1500" text-anchor="middle" font-family="sans-serif" font-size="84" font-weight="700" fill="white">聯絡客服</text>
+  </g>
+</svg>

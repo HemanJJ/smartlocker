@@ -42,6 +42,13 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Rich Menu 關鍵字
+      const keywordReply = handleKeyword(text);
+      if (keywordReply) {
+        await replyMessage(event.replyToken, [{ type: 'text', text: keywordReply }]);
+        continue;
+      }
+
       // 其他訊息 → Ollama 客服或 fallback
       const reply = await quickReply(text);
       await replyMessage(event.replyToken, [{ type: 'text', text: reply }]);
@@ -80,6 +87,17 @@ async function handleOrderCode(text: string, userId: string): Promise<string | n
     reply += `\n\n（此 LINE 已綁定本單）`;
   }
   return reply;
+}
+
+function handleKeyword(text: string): string | null {
+  const t = text.trim();
+  if (t === '查詢訂單' || t === '綁定取件' || t.includes('查詢') || t.includes('綁定')) {
+    return `請傳送您的 6 位取件碼，我會幫您查詢穿線訂單狀態並綁定 LINE。\n\n穿好且付款後，會自動通知您取件。`;
+  }
+  if (t === '客服' || t.includes('聯絡客服') || t.includes('聯絡')) {
+    return `您好，客服相關問題歡迎來電或留言，我們會盡快回覆您。`;
+  }
+  return null;
 }
 
 async function quickReply(userMessage: string): Promise<string> {
