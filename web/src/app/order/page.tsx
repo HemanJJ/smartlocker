@@ -22,6 +22,7 @@ interface OrderItem {
 }
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
+const LINE_BASIC_ID = LINE_BOT_ID.replace(/^@/, '');
 
 export default function OrderPage() {
   const [strings, setStrings] = useState<StringItem[]>([]);
@@ -116,16 +117,23 @@ export default function OrderPage() {
         <div style={{ background: '#e8f8ee', border: '1px solid #bfeccd', borderRadius: 16, padding: 20, marginTop: 16, fontSize: 15, lineHeight: 1.7 }}>
           <div style={{ fontWeight: 700, color: '#06C755' }}>📱 綁定 LINE 收取件通知</div>
           <div style={{ marginTop: 4 }}>
-            加入好友 <b>{LINE_BOT_ID}</b> 後，把取件碼 <b>{result.pickupCode}</b> 傳給我們。
-            傳送後取件碼會<b>保留在你的 LINE 對話中</b>，付款完成後會自動通知你取件。
+            把取件碼 <b>{result.pickupCode}</b> 傳給我們，取件碼就會<b>保留在你的 LINE 對話中</b>，付款完成後自動通知你取件。
           </div>
+          <a
+            href={`https://line.me/R/oaMessage/${LINE_BASIC_ID}/?${encodeURIComponent(result.pickupCode)}`}
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'block', marginTop: 12, padding: '12px 20px', background: '#06C755', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 700, textAlign: 'center', fontSize: 16 }}
+          >
+            📤 一鍵把取件碼帶到 LINE（按送出即綁定）
+          </a>
           <a
             href={`https://line.me/R/ti/p/${LINE_BOT_ID}`}
             target="_blank"
             rel="noreferrer"
-            style={{ display: 'inline-block', marginTop: 12, padding: '10px 20px', background: '#06C755', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 600 }}
+            style={{ display: 'block', marginTop: 10, padding: '10px 20px', background: '#fff', color: '#06C755', border: '1px solid #06C755', borderRadius: 10, textDecoration: 'none', fontWeight: 600, textAlign: 'center' }}
           >
-            開啟 LINE 加好友
+            還沒加好友？先加 {LINE_BOT_ID}
           </a>
         </div>
 
