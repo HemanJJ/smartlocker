@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { transitionOrder, cancelOrder } from '@/lib/stringing';
+import { transitionOrder, cancelOrder, voidUnboundOrder } from '@/lib/stringing';
 
 export const runtime = 'nodejs';
 
@@ -14,6 +14,11 @@ export async function POST(
 
     if (action === 'cancel') {
       const ok = await cancelOrder(Number(id));
+      return NextResponse.json({ ok });
+    }
+
+    if (action === 'void') {
+      const ok = await voidUnboundOrder(Number(id));
       return NextResponse.json({ ok });
     }
 

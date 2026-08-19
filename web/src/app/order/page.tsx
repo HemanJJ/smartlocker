@@ -25,6 +25,8 @@ interface OrderItem {
 }
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
+const WAIT_BIND_SECONDS = 60; // 會員未綁定 LINE 的等待秒數，逾時作廢訂單並回下單頁
+const DONE_SECONDS = 4;       // 綁定成功後顯示確認的秒數，自動回下單頁
 
 export default function OrderPage() {
   const [strings, setStrings] = useState<StringItem[]>([]);
@@ -36,6 +38,26 @@ export default function OrderPage() {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<OrderItem | null>(null);
+  const [waitSeconds, setWaitSeconds] = useState(WAIT_BIND_SECONDS);
+  const [doneSeconds, setDoneSeconds] = useState(DONE_SECONDS);
+
+  function reset() {
+    setResult(null);
+    setCustomerName('');
+    setNote('');
+    setWaitSeconds(WAIT_BIND_SECONDS);
+    setDoneSeconds(DONE_SECONDS);
+  }
+
+  async function voidOrder(id: number) {
+    try {
+      await fetch(`/api/orders/${id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'void' }),
+      });
+    } catch {}
+  }
 
   useEffect(() => {
     fetch('/api/strings')
@@ -68,6 +90,39 @@ export default function OrderPage() {
     return () => clearInterval(timer);
   }, [result]);
 
+  // 未綁定：WAIT_BIND_SECONDS 秒倒數，逾時作廢訂單並回下單頁
+  useEffect(() => {
+    if (!result || result.lineUserId) return;
+    let remaining = WAIT_BIND_SECONDS;
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        voidOrder(result.id);
+        reset();
+      } else {
+        setWaitSeconds(remaining);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [result]);
+
+  // 綁定成功：顯示確認 DONE_SECONDS 秒後自動回下單頁
+  useEffect(() => {
+    if (!result || !result.lineUserId) return;
+    let remaining = DONE_SECONDS;
+    const timer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        reset();
+      } else {
+        setDoneSeconds(remaining);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [result]);
+
   const selected = useMemo(
     () => strings.find((s) => s.id === selectedId) || null,
     [strings, selectedId]
@@ -92,6 +147,8 @@ export default function OrderPage() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '下單失敗');
       setResult(data.order);
+      setWaitSeconds(WAIT_BIND_SECONDS);
+      setDoneSeconds(DONE_SECONDS);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -99,22 +156,20 @@ export default function OrderPage() {
     }
   }
 
-  function reset() {
-    setResult(null);
-    setCustomerName('');
-    setNote('');
-  }
-
   if (result) {
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 16px', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
         <div style={{ fontSize: 48 }}>✅</div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 4 }}>已配格完成</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 4 }}>下單完成</h1>
 
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginTop: 20 }}>
           <div style={{ color: '#999', fontSize: 14 }}>取件碼</div>
           <div style={{ fontSize: 42, fontWeight: 800, letterSpacing: 6, color: '#06C755' }}>{result.pickupCode}</div>
-          <div style={{ color: '#999', fontSize: 14, marginTop: 8 }}>放進第 {result.currentSlot} 格</div>
+          {result.currentSlot != null ? (
+            <div style={{ color: '#999', fontSize: 14, marginTop: 8 }}>放進第 {result.currentSlot} 格</div>
+          ) : (
+            <div style={{ color: '#c90', fontSize: 14, marginTop: 8 }}>綁定 LINE 後自動分配格口</div>
+          )}
           <div style={{ color: '#999', fontSize: 14, marginTop: 4 }}>{result.stringModel} · {result.tension} lbs · NT${result.price}</div>
         </div>
 
@@ -124,6 +179,7 @@ export default function OrderPage() {
               ✅ 已綁定 LINE{result.lineName ? `：${result.lineName}` : ''}
             </div>
             <div style={{ color: '#555', fontSize: 13, marginTop: 6 }}>電子收據已送到你的 LINE 對話。</div>
+            <div style={{ color: '#999', fontSize: 13, marginTop: 6 }}>{doneSeconds} 秒後自動回到下單頁</div>
           </div>
         ) : (
           <div style={{ background: '#fff7e0', border: '1px solid #f0d48a', borderRadius: 16, padding: 16, marginTop: 16 }}>
@@ -137,12 +193,11 @@ export default function OrderPage() {
               不是好友 → 掃碼加好友即自動綁定
               <br />已是好友 → 開對話後，點下方「≡」選單 → 點「綁定」
             </div>
+            <div style={{ color: '#c33', fontWeight: 700, fontSize: 14, marginTop: 10 }}>
+              ⏱ {waitSeconds} 秒內未綁定，本單將自動作廢
+            </div>
           </div>
         )}
-
-        <button onClick={reset} style={{ display: 'block', width: '100%', marginTop: 16, padding: 14, background: '#333', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
-          下一筆訂單
-        </button>
       </div>
     );
   }

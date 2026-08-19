@@ -406,9 +406,6 @@ export async function createOrder(input: {
     throw new Error(`「${stringItem.model}」磅數上限為 ${stringItem.maxTension} lbs`);
   }
 
-  // 先佔一格（交拍格）
-  const slotNo = await occupyEmptySlot();
-
   // 產生不重複 6 位取件碼
   let pickupCode = '';
   for (let i = 0; i < 100; i++) {
@@ -428,38 +425,15 @@ export async function createOrder(input: {
   }
   if (!orderNo) throw new Error('單號產生失敗');
 
+  // 只建單，不配格、不印貼紙。會員綁定 LINE 後（finalizeAfterBind）才佔格＋印＋通知。
   const inserted = await sql`
     INSERT INTO orders (order_no, string_id, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
     VALUES (${orderNo}, ${stringItem.id}, ${tension}, ${stringItem.price}, ${pickupCode}, 'pending', FALSE,
-            ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, ${slotNo})
+            ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, NULL)
     RETURNING *
   `;
-  const orderId = Number(inserted[0].id);
-  await sql`
-    UPDATE locker_slots SET order_id = ${orderId} WHERE slot_no = ${slotNo}
-  `;
 
-  // 建立列印工作（kiosk 輪詢後印貼紙）
-  const labelData = JSON.stringify({
-    orderNo,
-    pickupCode,
-    model: stringItem.model,
-    tension,
-    price: stringItem.price,
-    slotNo,
-  });
-  await sql`INSERT INTO print_jobs (order_id, label_data) VALUES (${orderId}, ${labelData})`;
-  // 註：交拍的「開格」由 kiosk 統一輪詢程式在「印完貼紙後」接著開格（見 kiosk-poller.mjs），
-  //     這裡不再單獨排開格，避免與列印各自非同步造成順序錯亂。
-
-  const order = rowToOrder(inserted[0], stringItem.model);
-
-  // LINE 通知員工：新單
-  await notifyStaffNewOrder(order);
-  // 若已認證 LINE，寄件當下就推電子收據給客人
-  await notifyCustomerOrder(order);
-
-  return order;
+  return rowToOrder(inserted[0], stringItem.model);
 }
 
 // ── 列印佇列（kiosk 輪詢印貼紙）────────────────────────────────────────
@@ -491,12 +465,18 @@ export async function listPrintJobs(status: 'pending' | 'done' = 'pending'): Pro
 export async function markPrintJobDone(id: number): Promise<boolean> {
   await ensureStringingSchema();
   const sql = getDb();
+  const jobRows = await sql`SELECT * FROM print_jobs WHERE id = ${id} AND status = 'pending'`;
+  if (jobRows.length === 0) return false;
+
   const result = await sql`
     UPDATE print_jobs SET status = 'done', done_at = NOW()
     WHERE id = ${id} AND status = 'pending'
     RETURNING id
   `;
-  return result.length > 0;
+  if (result.length === 0) return false;
+
+  // 註：員工新單通知已移到「綁定成功時」（finalizeAfterBind），這裡只標記列印完成。
+  return true;
 }
 
 // ── 開格佇列（kiosk 輪詢後送 RS-485 開鎖）──────────────────────────────
@@ -614,6 +594,7 @@ export async function transitionOrder(id: number, action: string): Promise<Order
 
   if (action === 'take') {
     if (status !== 'pending') throw new Error('只有「待收件」訂單可以取件');
+    if (order.currentSlot == null) throw new Error('訂單尚未綁定 LINE／未配格，無法取件');
     // 開格取拍
     if (order.currentSlot != null) await queueOpenCell(order.currentSlot);
     await releaseSlot(order.currentSlot);
@@ -673,6 +654,19 @@ export async function pickupOrder(code: string): Promise<OrderItem> {
   return order;
 }
 
+/** 作廢「尚未綁定」的訂單（kiosk 逾時用）：已綁定或已配格則不動作，避免誤刪。 */
+export async function voidUnboundOrder(id: number): Promise<boolean> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT id, line_user_id, current_slot FROM orders WHERE id = ${id}`;
+  if (rows.length === 0) return false;
+  if (rows[0].line_user_id !== '' || rows[0].current_slot != null) {
+    return false; // 已綁定或已配格 → 保護，不刪
+  }
+  const del = await sql`DELETE FROM orders WHERE id = ${id} RETURNING id`;
+  return del.length > 0;
+}
+
 /** 取消訂單：釋放格口並刪除訂單（print_jobs 由 CASCADE 刪除） */
 export async function cancelOrder(id: number): Promise<boolean> {
   await ensureStringingSchema();
@@ -697,6 +691,32 @@ export async function clearAllOrders(): Promise<void> {
 
 // ── 綁定客人 LINE（webhook 收到取件碼時）────────────────────────────────
 
+/** 綁定後：佔一格 → 建列印工作 → 通知員工（我＋業者）。冪等，回傳更新後訂單。 */
+async function finalizeAfterBind(orderId: number): Promise<OrderItem | null> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const order = await getOrderById(orderId);
+  if (!order) return null;
+  if (order.currentSlot != null) return order; // 已配格（重複綁定）→ 不再重配
+
+  const slotNo = await occupyEmptySlot(order.id);
+  await sql`UPDATE orders SET current_slot = ${slotNo} WHERE id = ${order.id} AND current_slot IS NULL`;
+
+  const labelData = JSON.stringify({
+    orderNo: order.orderNo,
+    pickupCode: order.pickupCode,
+    model: order.stringModel,
+    tension: order.tension,
+    price: order.price,
+    slotNo,
+  });
+  await sql`INSERT INTO print_jobs (order_id, label_data) VALUES (${order.id}, ${labelData})`;
+
+  const updated = await getOrderById(order.id);
+  if (updated) await notifyStaffNewOrder(updated); // 我 + 業者（STAFF_LINE_USER_ID）
+  return updated;
+}
+
 /** 綁定「最近一筆未綁 LINE 的訂單」並推電子收據（掃 QR 加好友 / 點「綁定」用） */
 export async function bindMostRecentUnboundOrder(
   lineUserId: string,
@@ -714,7 +734,10 @@ export async function bindMostRecentUnboundOrder(
   `;
   const order = await getOrderById(Number(rows[0].id));
   if (order && order.lineUserId === lineUserId) {
-    await notifyCustomerOrder(order);
+    // 綁定成功 → 配格＋印貼紙＋通知員工；再推電子收據給會員
+    const finalized = await finalizeAfterBind(order.id);
+    if (finalized) await notifyCustomerOrder(finalized);
+    return finalized ?? order;
   }
   return order;
 }
@@ -738,8 +761,9 @@ export async function bindCustomer(
     if (profile?.displayName) {
       await sql`UPDATE orders SET line_name = ${profile.displayName} WHERE id = ${order.id}`;
     }
-    const updated = await getOrderById(order.id);
-    return { order: updated, boundNow: true, alreadyBoundOther: false };
+    // 綁定成功 → 配格＋印貼紙＋通知員工（電子收據由 webhook 回覆文字帶出）
+    const finalized = (await finalizeAfterBind(order.id)) ?? (await getOrderById(order.id));
+    return { order: finalized, boundNow: true, alreadyBoundOther: false };
   }
   return { order, boundNow: false, alreadyBoundOther: false };
 }
@@ -768,7 +792,7 @@ async function notifyStaffNewOrder(order: OrderItem): Promise<void> {
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot} 格\n` +
     `${order.customerName ? `客人：${order.customerName}\n` : ''}` +
-    `請取件後開始穿線。`;
+    `已分派格口，請前往取拍後開始穿線。`;
   for (const id of staffIds) {
     await pushMessage(id, [{ type: 'text', text }]);
   }

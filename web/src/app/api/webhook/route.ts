@@ -167,7 +167,7 @@ async function handleOrderCode(text: string, userId: string): Promise<string | n
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
     `費用：NT$${order.price}\n` +
     `取件碼：${code}\n` +
-    (order.currentSlot != null ? `格號：第 ${order.currentSlot} 格\n` : '') +
+    (bound.order?.currentSlot != null ? `格號：第 ${bound.order.currentSlot} 格\n` : '') +
     `狀態：${STATUS_LABEL[order.status]}\n` +
     `━━━━━━━━━━━━`;
   if (bound.boundNow) {
