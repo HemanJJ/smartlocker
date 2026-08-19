@@ -22,11 +22,11 @@
   <line x1="0" y1="655" x2="2500" y2="655" stroke="rgba(255,255,255,0.28)" stroke-width="6"/>
   <line x1="0" y1="1170" x2="2500" y2="1170" stroke="rgba(255,255,255,0.28)" stroke-width="6"/>
 
-  <!-- 列 1 左：綁定（凸出明亮按鈕） -->
+  <!-- 列 1 左：穿線下單（凸出明亮按鈕） -->
   <rect x="188" y="253" width="900" height="320" rx="60" fill="rgba(0,0,0,0.28)"/>
   <rect x="175" y="245" width="900" height="320" rx="60" fill="url(#btn)"/>
-  <text x="625" y="385" text-anchor="middle" font-family="sans-serif" font-size="110" fill="#7a5200">🔑</text>
-  <text x="625" y="500" text-anchor="middle" font-family="sans-serif" font-size="92" font-weight="800" fill="#5c3d00">綁定</text>
+  <text x="625" y="385" text-anchor="middle" font-family="sans-serif" font-size="110" fill="#7a5200">🏸</text>
+  <text x="625" y="500" text-anchor="middle" font-family="sans-serif" font-size="92" font-weight="800" fill="#5c3d00">穿線下單</text>
 
   <!-- 列 1 右：預訂場地 -->
   <g><text x="1875" y="335" text-anchor="middle" font-family="sans-serif" font-size="120" fill="white">📅</text><text x="1875" y="465" text-anchor="middle" font-family="sans-serif" font-size="68" font-weight="700" fill="white">預訂場地</text></g>
@@ -35,7 +35,7 @@
   <g><text x="625" y="850" text-anchor="middle" font-family="sans-serif" font-size="120" fill="white">📋</text><text x="625" y="980" text-anchor="middle" font-family="sans-serif" font-size="68" font-weight="700" fill="white">查詢訂單</text></g>
   <g><text x="1875" y="850" text-anchor="middle" font-family="sans-serif" font-size="120" fill="white">📍</text><text x="1875" y="980" text-anchor="middle" font-family="sans-serif" font-size="68" font-weight="700" fill="white">我的訂位</text></g>
 
-  <!-- 列 3：價目表 | 聯絡客服 -->
-  <g><text x="625" y="1365" text-anchor="middle" font-family="sans-serif" font-size="120" fill="white">💰</text><text x="625" y="1495" text-anchor="middle" font-family="sans-serif" font-size="68" font-weight="700" fill="white">價目表</text></g>
+  <!-- 列 3：綁定取件 | 聯絡客服 -->
+  <g><text x="625" y="1365" text-anchor="middle" font-family="sans-serif" font-size="120" fill="white">🔑</text><text x="625" y="1495" text-anchor="middle" font-family="sans-serif" font-size="68" font-weight="700" fill="white">綁定取件</text></g>
   <g><text x="1875" y="1365" text-anchor="middle" font-family="sans-serif" font-size="120" fill="white">💬</text><text x="1875" y="1495" text-anchor="middle" font-family="sans-serif" font-size="68" font-weight="700" fill="white">聯絡客服</text></g>
 </svg>

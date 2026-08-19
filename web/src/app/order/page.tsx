@@ -183,7 +183,7 @@ export default function OrderPage() {
           </div>
         ) : (
           <div style={{ background: '#fff7e0', border: '1px solid #f0d48a', borderRadius: 16, padding: 16, marginTop: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>📱 拿手機掃 QR 綁定 LINE，收電子收據</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>📱 掃 QR 加好友，收電子收據</div>
             <img
               src={`/api/qr?text=${encodeURIComponent(`https://line.me/R/ti/p/${LINE_BOT_ID}`)}&w=220`}
               alt="加好友 QR"

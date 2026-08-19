@@ -47,18 +47,12 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 客人點「綁定」/「認證」→ 綁「最近一筆未綁訂單」＋推電子收據
+      // 綁定／認證：不再自動綁「最近一筆」，改引導傳 6 位取件碼
       if (text === '綁定' || text === '認證' || text === '登入') {
-        const { bindMostRecentUnboundOrder } = await import('@/lib/stringing');
-        const { getProfile } = await import('@/lib/line');
-        const profile = await getProfile(userId);
-        const order = await bindMostRecentUnboundOrder(userId, profile?.displayName || '');
         await replyMessage(event.replyToken, [
           {
             type: 'text',
-            text: order
-              ? `✅ 綁定成功！電子收據已送到這裡。\n\n單號：${order.orderNo}\n取件碼：${order.pickupCode}`
-              : '⚠️ 找不到待綁定的訂單，請先在 kiosk 下單。',
+            text: '請把 kiosk 畫面上的 6 位取件碼直接傳給我，我就會幫您綁定這筆訂單並送出電子收據。',
           },
         ]);
         continue;
