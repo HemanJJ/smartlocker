@@ -184,7 +184,7 @@ export default function OrderPage() {
             {lineUserId ? (
               <div style={{ fontWeight: 700, color: '#06C755' }}>
                 ✅ LINE 已認證{lineName ? `：${lineName}` : ''}
-                <span style={{ fontWeight: 400, color: '#555', marginLeft: 4 }}>— 寄件後電子小票會直接送到你的 LINE</span>
+                <span style={{ fontWeight: 400, color: '#555', marginLeft: 4 }}>— 寄件後電子收據會直接送到你的 LINE</span>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

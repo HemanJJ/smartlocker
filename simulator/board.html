@@ -30,6 +30,8 @@
 <header>
   <h1>🗄️ 格口模擬板 · 羽拍有約（22 格）</h1>
   <span class="hint" id="conn">連線中…</span>
+  <a href="https://smartlocker-alpha.vercel.app/order" target="_blank" style="padding:8px 12px;background:#06C755;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">🧵 kiosk 下單</a>
+  <a href="https://smartlocker-alpha.vercel.app/admin" target="_blank" style="padding:8px 12px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">👤 後台</a>
   <button onclick="resetAll()" style="padding:8px 14px;background:#e5484d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">🔄 重置全部</button>
 </header>
 
@@ -41,18 +43,22 @@
 </div>
 
 <div class="grid" id="grid"></div>
-<div id="log"></div>
+
+<div style="margin-top:14px;background:#12161f;border-radius:10px;padding:12px">
+  <div style="color:#fff;font-weight:700;font-size:14px;margin-bottom:8px">🛠 除錯工具</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <input id="frameInput" placeholder="送幀測試，例：55A101E2010117" style="flex:1;min-width:220px;padding:8px 10px;border-radius:8px;border:1px solid #333;background:#1a1f2b;color:#fff;font-family:ui-monospace,monospace;font-size:13px">
+    <button onclick="sendFrame()" style="padding:8px 14px;background:#f5b301;color:#111;border:none;border-radius:8px;cursor:pointer;font-weight:700">送出</button>
+    <button onclick="quickOpen(1)" style="padding:8px 12px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer">開格1</button>
+    <button onclick="quickOpen(0)" style="padding:8px 12px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer">全開</button>
+  </div>
+  <div id="framelog" style="margin-top:10px;font-family:ui-monospace,monospace;font-size:12px;color:#9ab;max-height:160px;overflow:auto;white-space:pre-wrap;line-height:1.6"></div>
+</div>
 
 <script>
 const GRID = document.getElementById('grid');
 const CONN = document.getElementById('conn');
-const LOG = document.getElementById('log');
-
-function log(msg) {
-  const line = '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
-  LOG.textContent = line + LOG.textContent;
-  LOG.textContent = LOG.textContent.split('\n').slice(0, 40).join('\n');
-}
+const FRAMELOG = document.getElementById('framelog');
 
 async function fetchState() {
   try {
@@ -79,29 +85,57 @@ function render(cells) {
   }
 }
 
-async function resetAll() {
+async function fetchFrameLog() {
   try {
-    await fetch('/reset', { method: 'POST' });
-    log('重置全部（22 格全關門）');
-    fetchState();
-  } catch (e) {
-    log('重置失敗：' + e.message);
-  }
+    const r = await fetch('/log');
+    const j = await r.json();
+    FRAMELOG.textContent = (j.log || []).map((l) => '[' + l.ts + '] ' + l.dir + ' ' + l.hex).join('\n');
+  } catch {}
+}
+
+async function resetAll() {
+  await fetch('/reset', { method: 'POST' });
+  fetchState();
+  fetchFrameLog();
 }
 
 async function toggle(no, currentDoor) {
   const path = currentDoor === 'open' ? '/close' : '/open';
   try {
     await fetch(path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ no }) });
-    log('格 ' + no + (currentDoor === 'open' ? ' 關門' : ' 開門（手動）'));
     fetchState();
+    fetchFrameLog();
   } catch (e) {
-    log('操作失敗：' + e.message);
+    alert('操作失敗：' + e.message);
   }
 }
 
+async function sendFrame() {
+  const hex = document.getElementById('frameInput').value.trim();
+  if (!hex) return;
+  try {
+    await fetch('/rs485', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ hex }) });
+    document.getElementById('frameInput').value = '';
+    fetchState();
+    fetchFrameLog();
+  } catch (e) {
+    alert('送幀失敗：' + e.message);
+  }
+}
+
+function quickOpen(no) {
+  const data = no === 0 ? [0] : [no];
+  const bytes = [0x55, 0xA1, 0x01, 0xE2, data.length, ...data];
+  bytes.push(bytes.reduce((a, b) => a ^ b, 0) & 0xff);
+  const hex = bytes.map((b) => b.toString(16).padStart(2, '0').toUpperCase()).join('');
+  document.getElementById('frameInput').value = hex;
+  sendFrame();
+}
+
 fetchState();
+fetchFrameLog();
 setInterval(fetchState, 500);
+setInterval(fetchFrameLog, 1000);
 </script>
 </body>
 </html>

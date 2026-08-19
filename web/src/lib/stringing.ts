@@ -437,7 +437,7 @@ export async function createOrder(input: {
 
   // LINE 通知員工：新單
   await notifyStaffNewOrder(order);
-  // 若已認證 LINE，寄件當下就推電子小票給客人
+  // 若已認證 LINE，寄件當下就推電子收據給客人
   await notifyCustomerOrder(order);
 
   return order;
@@ -709,11 +709,11 @@ async function notifyStaffNewOrder(order: OrderItem): Promise<void> {
   }
 }
 
-/** 寄件當下推電子小票給客人（若已認證 LINE） */
+/** 寄件當下推電子收據給客人（若已認證 LINE） */
 async function notifyCustomerOrder(order: OrderItem): Promise<void> {
   if (!order.lineUserId) return;
   const text =
-    `🧾 羽拍有約 · 電子小票\n` +
+    `🧾 羽拍有約 · 電子收據\n` +
     `━━━━━━━━━━━━\n` +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +

@@ -24,6 +24,9 @@ const cells = Array.from({ length: CELL_COUNT + 1 }, (_, i) => ({
   power: 'off',
 }));
 
+// RS-485 通訊日誌（供除錯面板顯示）
+const frameLog = [];
+
 function xorChecksum(bytes) {
   return bytes.reduce((a, b) => a ^ b, 0) & 0xff;
 }
@@ -131,9 +134,18 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/log' && req.method === 'GET') {
+    send(200, { log: frameLog.slice(-60) });
+    return;
+  }
+
   if (url.pathname === '/rs485' && req.method === 'POST') {
     const body = JSON.parse((await readBody(req)) || '{}');
     const result = handleFrame(body.hex);
+    const ts = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+    frameLog.push({ ts, dir: 'RX', hex: String(body.hex || '') });
+    if (result.hex) frameLog.push({ ts, dir: 'TX', hex: result.hex });
+    if (frameLog.length > 200) frameLog.splice(0, frameLog.length - 200);
     console.log(`[485] RX ${body.hex}  →  ${result.error ? 'ERR ' + result.error : 'TX ' + result.hex}`);
     send(result.error ? 400 : 200, result);
     return;

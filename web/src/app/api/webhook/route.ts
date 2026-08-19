@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
           {
             type: 'text',
             text: ok
-              ? `✅ 認證成功${profile?.displayName ? '（' + profile.displayName + '）' : ''}！請回到 kiosk 繼續下單，寄件後電子小票會送到這裡。`
+              ? `✅ 認證成功${profile?.displayName ? '（' + profile.displayName + '）' : ''}！請回到 kiosk 繼續下單，寄件後電子收據會送到這裡。`
               : '⚠️ 找不到待認證的 kiosk，請先回到 kiosk 下單頁按重整再試。',
           },
         ]);
@@ -123,7 +123,7 @@ async function handleSessionCode(text: string, userId: string): Promise<string |
   if (!ok) {
     return `認證碼 ${code} 無效或已使用，請回到 kiosk 重新整理取得新碼。`;
   }
-  return `✅ 認證成功${name ? `（${name}）` : ''}！請回到 kiosk 繼續下單，寄件後電子小票會直接送到這裡。`;
+  return `✅ 認證成功${name ? `（${name}）` : ''}！請回到 kiosk 繼續下單，寄件後電子收據會直接送到這裡。`;
 }
 
 async function handleOrderCode(text: string, userId: string): Promise<string | null> {
@@ -141,7 +141,7 @@ async function handleOrderCode(text: string, userId: string): Promise<string | n
 
   const bound = await bindCustomer(code, userId);
 
-  let reply = `🧾 羽拍有約 · 電子小票\n` +
+  let reply = `🧾 羽拍有約 · 電子收據\n` +
     `━━━━━━━━━━━━\n` +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
