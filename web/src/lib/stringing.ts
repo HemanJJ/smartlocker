@@ -654,6 +654,28 @@ export async function clearAllOrders(): Promise<void> {
 
 // ── 綁定客人 LINE（webhook 收到取件碼時）────────────────────────────────
 
+/** 綁定「最近一筆未綁 LINE 的訂單」並推電子收據（掃 QR 加好友 / 點「綁定」用） */
+export async function bindMostRecentUnboundOrder(
+  lineUserId: string,
+  lineName: string
+): Promise<OrderItem | null> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`
+    SELECT id FROM orders WHERE line_user_id = '' ORDER BY id DESC LIMIT 1
+  `;
+  if (rows.length === 0) return null;
+  await sql`
+    UPDATE orders SET line_user_id = ${lineUserId}, line_name = ${lineName}
+    WHERE id = ${Number(rows[0].id)} AND line_user_id = ''
+  `;
+  const order = await getOrderById(Number(rows[0].id));
+  if (order && order.lineUserId === lineUserId) {
+    await notifyCustomerOrder(order);
+  }
+  return order;
+}
+
 export async function bindCustomer(
   pickupCode: string,
   lineUserId: string

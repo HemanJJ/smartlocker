@@ -12,6 +12,7 @@ interface StringItem {
 }
 
 interface OrderItem {
+  id: number;
   orderNo: string;
   stringModel: string;
   tension: number;
@@ -19,6 +20,8 @@ interface OrderItem {
   pickupCode: string;
   currentSlot: number | null;
   status: string;
+  lineUserId: string;
+  lineName: string;
 }
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
@@ -33,14 +36,6 @@ export default function OrderPage() {
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<OrderItem | null>(null);
-  const [sessionCode, setSessionCode] = useState('');
-  const [lineUserId, setLineUserId] = useState('');
-  const [lineName, setLineName] = useState('');
-  const [steps, setSteps] = useState<string[]>([]);
-
-  function pushStep(msg: string) {
-    setSteps((prev) => [...prev.slice(-19), msg]);
-  }
 
   useEffect(() => {
     fetch('/api/strings')
@@ -55,32 +50,23 @@ export default function OrderPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-
-    // 建立 kiosk 認證 session
-    fetch('/api/kiosk-session', { method: 'POST' })
-      .then((r) => r.json())
-      .then((d) => { if (d.ok) { setSessionCode(d.code); pushStep('建立認證 session：' + d.code); } })
-      .catch(() => {});
   }, []);
 
-  // 輪詢認證狀態（客人加好友後點「認證」→ 綁定 LINE）
+  // 下單後輪詢綁定狀態：客人掃 QR 加好友／點「綁定」→ 這筆訂單的 lineUserId 被填上
   useEffect(() => {
-    if (!sessionCode) return;
-    pushStep('等待客人加好友並點「✅ 認證」…');
+    if (!result || result.lineUserId) return;
     const timer = setInterval(async () => {
       try {
-        const r = await fetch(`/api/kiosk-session?code=${sessionCode}`);
+        const r = await fetch(`/api/orders/${result.id}`);
         const d = await r.json();
-        if (d.ok && d.session?.linked) {
-          setLineUserId(d.session.lineUserId);
-          setLineName(d.session.lineName);
-          pushStep('✅ 已認證：' + (d.session.lineName || d.session.lineUserId));
+        if (d.ok && d.order?.lineUserId) {
+          setResult(d.order);
           clearInterval(timer);
         }
       } catch {}
     }, 1500);
     return () => clearInterval(timer);
-  }, [sessionCode]);
+  }, [result]);
 
   const selected = useMemo(
     () => strings.find((s) => s.id === selectedId) || null,
@@ -101,18 +87,11 @@ export default function OrderPage() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stringId: selected.id,
-          tension,
-          customerName,
-          note,
-          lineUserId,
-        }),
+        body: JSON.stringify({ stringId: selected.id, tension, customerName, note }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '下單失敗');
       setResult(data.order);
-      pushStep('下單成功 ' + data.order.orderNo + (lineUserId ? ' → 小票已推 LINE' : '（未認證，小票僅貼紙）'));
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -130,7 +109,7 @@ export default function OrderPage() {
     return (
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '32px 16px', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
         <div style={{ fontSize: 48 }}>✅</div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 4 }}>下單成功</h1>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 4 }}>已配格完成</h1>
 
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 20, marginTop: 20 }}>
           <div style={{ color: '#999', fontSize: 14 }}>取件碼</div>
@@ -139,20 +118,27 @@ export default function OrderPage() {
           <div style={{ color: '#999', fontSize: 14, marginTop: 4 }}>{result.stringModel} · {result.tension} lbs · NT${result.price}</div>
         </div>
 
-        <div style={{ background: '#e8f8ee', border: '1px solid #bfeccd', borderRadius: 16, padding: 16, marginTop: 16 }}>
-          <div style={{ fontWeight: 700, color: '#06C755', fontSize: 15 }}>📱 加 LINE 傳此碼，收取件通知</div>
-          <a
-            href={`https://line.me/R/ti/p/${LINE_BOT_ID}`}
-            target="_blank"
-            rel="noreferrer"
-            style={{ display: 'block', marginTop: 10, padding: '12px 20px', background: '#06C755', color: '#fff', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 16 }}
-          >
-            開啟 LINE 綁定
-          </a>
-          <div style={{ color: '#888', fontSize: 13, marginTop: 8 }}>
-            加好友後，把取件碼 {result.pickupCode} 傳給我們，就會留在對話中。
+        {result.lineUserId ? (
+          <div style={{ background: '#e8f8ee', border: '1px solid #bfeccd', borderRadius: 16, padding: 16, marginTop: 16 }}>
+            <div style={{ fontWeight: 700, color: '#06C755', fontSize: 15 }}>
+              ✅ 已綁定 LINE{result.lineName ? `：${result.lineName}` : ''}
+            </div>
+            <div style={{ color: '#555', fontSize: 13, marginTop: 6 }}>電子收據已送到你的 LINE 對話。</div>
           </div>
-        </div>
+        ) : (
+          <div style={{ background: '#fff7e0', border: '1px solid #f0d48a', borderRadius: 16, padding: 16, marginTop: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>📱 拿手機掃 QR 綁定 LINE，收電子收據</div>
+            <img
+              src={`/api/qr?text=${encodeURIComponent(`https://line.me/R/ti/p/${LINE_BOT_ID}`)}&w=220`}
+              alt="加好友 QR"
+              style={{ width: 160, height: 160, marginTop: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff' }}
+            />
+            <div style={{ color: '#777', fontSize: 13, marginTop: 8 }}>
+              不是好友 → 掃碼加好友即自動綁定
+              <br />已是好友 → 掃碼開對話後，點選單「綁定」
+            </div>
+          </div>
+        )}
 
         <button onClick={reset} style={{ display: 'block', width: '100%', marginTop: 16, padding: 14, background: '#333', color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
           下一筆訂單
@@ -180,31 +166,7 @@ export default function OrderPage() {
 
       {!loading && strings.length > 0 && selected && (
         <div style={{ marginTop: 20 }}>
-          <div style={{ background: lineUserId ? '#e8f8ee' : '#fff7e0', border: `1px solid ${lineUserId ? '#bfeccd' : '#f0d48a'}`, borderRadius: 16, padding: 16, fontSize: 15, lineHeight: 1.6 }}>
-            {lineUserId ? (
-              <div style={{ fontWeight: 700, color: '#06C755' }}>
-                ✅ LINE 已認證{lineName ? `：${lineName}` : ''}
-                <span style={{ fontWeight: 400, color: '#555', marginLeft: 4 }}>— 寄件後電子收據會直接送到你的 LINE</span>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <img
-                  src={`/api/qr?text=${encodeURIComponent(`https://line.me/R/ti/p/${LINE_BOT_ID}`)}&w=200`}
-                  alt="加好友 QR"
-                  style={{ width: 110, height: 110, borderRadius: 8, border: '1px solid #ddd', background: '#fff' }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700 }}>0️⃣ LINE 認證（選填）</div>
-                  <div style={{ color: '#555', fontSize: 14, marginTop: 4 }}>
-                    ① 掃左邊 QR 加好友 <b>{LINE_BOT_ID}</b>（已是好友可略過）
-                    <br />② 在 LINE 對話<b>輸入「認證」兩字送出</b>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div style={{ fontWeight: 600, margin: '16px 0 8px' }}>1️⃣ 選擇線種</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>1️⃣ 選擇線種</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {strings.map((s) => (
               <button
@@ -267,16 +229,6 @@ export default function OrderPage() {
           >
             {submitting ? '處理中…' : `確認下單 · NT$${selected.price}`}
           </button>
-
-          {/* 除錯監聽：狀態框 + 步驟 */}
-          <div style={{ marginTop: 20, background: '#1a1f2b', color: '#cfe3d2', borderRadius: 14, padding: 14, fontFamily: 'ui-monospace, monospace', fontSize: 13, lineHeight: 1.7 }}>
-            <div style={{ fontWeight: 700, color: '#fff', marginBottom: 6 }}>🛠 除錯監聽</div>
-            <div>session：{sessionCode || '…'}</div>
-            <div>認證：{lineUserId ? `✅ ${lineName || '已綁定'}` : '未認證'}</div>
-            <div style={{ marginTop: 6, color: '#9ab' }}>
-              {steps.length ? steps.map((s, i) => <div key={i}>· {s}</div>) : '—'}
-            </div>
-          </div>
         </div>
       )}
     </div>

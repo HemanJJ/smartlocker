@@ -19,27 +19,22 @@ export async function POST(request: NextRequest) {
     }
 
     for (const event of events) {
-      // 加入好友：主動打招呼＋引導（附快捷按鈕）
+      // 加入好友：自動綁定「最近一筆未綁訂單」＋推電子收據
       if (event.type === 'follow' && event.replyToken) {
-        console.log(`[Webhook] 加入好友事件 (userId=${(event.source as any)?.userId || ''})`);
-        await replyMessage(
-          event.replyToken,
-          [
-            {
-              type: 'text',
-              text:
-                '歡迎加入羽拍有約！🏸\n\n' +
-                '在 kiosk 寄拍？點下方「✅ 認證」完成登入。\n' +
-                '想查訂單？傳送您的 6 位取件碼。',
-            },
-          ],
+        const uid = (event.source as any)?.userId || '';
+        console.log(`[Webhook] 加入好友事件 (userId=${uid})`);
+        const { bindMostRecentUnboundOrder } = await import('@/lib/stringing');
+        const { getProfile } = await import('@/lib/line');
+        const profile = await getProfile(uid);
+        const order = await bindMostRecentUnboundOrder(uid, profile?.displayName || '');
+        await replyMessage(event.replyToken, [
           {
-            items: [
-              { type: 'action', action: { type: 'message', label: '✅ 認證', text: '認證' } },
-              { type: 'action', action: { type: 'message', label: '查詢訂單', text: '查詢訂單' } },
-            ],
-          }
-        );
+            type: 'text',
+            text: order
+              ? `✅ 已綁定！電子收據已送到這裡。\n\n單號：${order.orderNo}\n取件碼：${order.pickupCode}`
+              : '歡迎加入羽拍有約！🏸\n\n請先在 kiosk 下單，再回來掃 QR 綁定，電子收據就會送到這裡。',
+          },
+        ]);
         continue;
       }
 
@@ -58,18 +53,18 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // 客人點「認證」→ 綁到最近的 kiosk session（免記碼）
-      if (text === '認證' || text === '登入') {
-        const { linkMostRecentSession } = await import('@/lib/stringing');
+      // 客人點「綁定」/「認證」→ 綁「最近一筆未綁訂單」＋推電子收據
+      if (text === '綁定' || text === '認證' || text === '登入') {
+        const { bindMostRecentUnboundOrder } = await import('@/lib/stringing');
         const { getProfile } = await import('@/lib/line');
         const profile = await getProfile(userId);
-        const ok = await linkMostRecentSession(userId, profile?.displayName || '');
+        const order = await bindMostRecentUnboundOrder(userId, profile?.displayName || '');
         await replyMessage(event.replyToken, [
           {
             type: 'text',
-            text: ok
-              ? `✅ 認證成功${profile?.displayName ? '（' + profile.displayName + '）' : ''}！請回到 kiosk 繼續下單，寄件後電子收據會送到這裡。`
-              : '⚠️ 找不到待認證的 kiosk，請先回到 kiosk 下單頁按重整再試。',
+            text: order
+              ? `✅ 綁定成功！電子收據已送到這裡。\n\n單號：${order.orderNo}\n取件碼：${order.pickupCode}`
+              : '⚠️ 找不到待綁定的訂單，請先在 kiosk 下單。',
           },
         ]);
         continue;
