@@ -777,8 +777,10 @@ async function notifyStaffNewOrder(order: OrderItem): Promise<void> {
 /** 寄件當下推電子收據給客人（若已認證 LINE） */
 async function notifyCustomerOrder(order: OrderItem): Promise<void> {
   if (!order.lineUserId) return;
+  const dear = order.lineName ? `親愛的 ${order.lineName}，您好！\n` : '';
   const text =
     `🧾 羽拍有約 · 電子收據\n` +
+    dear +
     `━━━━━━━━━━━━\n` +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
@@ -795,8 +797,10 @@ async function notifyCustomerPickup(order: OrderItem): Promise<void> {
     console.warn(`[Stringing] 訂單 ${order.orderNo} 未綁定客人 LINE，略過取件通知`);
     return;
   }
+  const dear = order.lineName ? `${order.lineName}，您好！\n\n` : '';
   const text =
     `🏸 您的球拍穿好囉！\n\n` +
+    dear +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
     `取件碼：${order.pickupCode}\n` +
