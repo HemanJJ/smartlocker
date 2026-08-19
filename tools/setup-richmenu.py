@@ -33,11 +33,11 @@ RICH_MENU = {
         },
         {
             "bounds": {"x": 0, "y": 655, "width": 1250, "height": 515},
-            "action": {"type": "uri", "label": "我的訂位", "uri": "https://difly-booking.vercel.app/bookings"}
+            "action": {"type": "message", "label": "價目表", "text": "價目表"}
         },
         {
             "bounds": {"x": 1250, "y": 655, "width": 1250, "height": 515},
-            "action": {"type": "message", "label": "價目表", "text": "價目表"}
+            "action": {"type": "uri", "label": "我的訂位", "uri": "https://difly-booking.vercel.app/bookings"}
         },
         {
             "bounds": {"x": 0, "y": 1170, "width": 1250, "height": 516},
