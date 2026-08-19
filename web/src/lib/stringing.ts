@@ -84,10 +84,10 @@ const STRING_SEED: Array<[string, string, string, number, number]> = [
   ['YOUNG66', '0.66mm', '硬線', 30, 250],
   ['YOUNG65', '0.65mm', '硬線', 28, 300],
   ['YOUNG63', '0.63mm', '鍍鈦硬線', 28, 350],
-  ['KIZUNA Z61', '0.61mm', '—', 28, 450],
-  ['KIZUNA Z63X', '0.63mm', '—', 28, 400],
-  ['KIZUNA Z65X', '0.65mm', '—', 28, 400],
-  ['DEARFLY61 螺紋線', '0.61mm', '螺紋線', 30, 350],
+  ['BG65', '0.70mm', '軟線', 26, 250],
+  ['BG65-2', '0.70mm', '軟線', 26, 250],
+  ['BG65-T-2', '0.70mm', '鈦', 28, 350],
+  ['BG80-2', '0.68mm', '—', 28, 350],
 ];
 
 // ── Schema 初始化（惰性 + 每個 instance 只跑一次）────────────────────────
@@ -193,11 +193,17 @@ export function ensureStringingSchema(): Promise<void> {
           ('YOUNG66', '0.66mm', '硬線', 30, 250),
           ('YOUNG65', '0.65mm', '硬線', 28, 300),
           ('YOUNG63', '0.63mm', '鍍鈦硬線', 28, 350),
-          ('KIZUNA Z61', '0.61mm', '—', 28, 450),
-          ('KIZUNA Z63X', '0.63mm', '—', 28, 400),
-          ('KIZUNA Z65X', '0.65mm', '—', 28, 400),
-          ('DEARFLY61 螺紋線', '0.61mm', '螺紋線', 30, 350)
+          ('BG65', '0.70mm', '軟線', 26, 250),
+          ('BG65-2', '0.70mm', '軟線', 26, 250),
+          ('BG65-T-2', '0.70mm', '鈦', 28, 350),
+          ('BG80-2', '0.68mm', '—', 28, 350)
         ON CONFLICT (model) DO NOTHING
+      `;
+
+      // 停用舊線種（已不再販售）
+      await sql`
+        UPDATE strings SET is_active = FALSE
+        WHERE model IN ('KIZUNA Z61', 'KIZUNA Z63X', 'KIZUNA Z65X', 'DEARFLY61 螺紋線')
       `;
 
       // 種入格口（數量可調，預設 22）

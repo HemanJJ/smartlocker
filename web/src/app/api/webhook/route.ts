@@ -84,6 +84,17 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // 價目表 → 回傳全部在售線種
+      if (text === '價目表' || text === '價目' || text === '線種') {
+        const { listStrings } = await import('@/lib/stringing');
+        const strings = await listStrings(true);
+        const rows = strings.map((s) => `${s.model}（${s.gauge}）NT$${s.price}`).join('\n');
+        await replyMessage(event.replyToken, [
+          { type: 'text', text: `💰 穿線價目表（含工帶料）\n━━━━━━━━━━\n${rows}` },
+        ]);
+        continue;
+      }
+
       // 客人傳 4 位認證碼 → kiosk 身份認證（備援）
       const sessionReply = await handleSessionCode(text, userId);
       if (sessionReply) {
