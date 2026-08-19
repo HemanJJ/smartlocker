@@ -133,9 +133,9 @@ export default function OrderPage() {
               alt="加好友 QR"
               style={{ width: 160, height: 160, marginTop: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff' }}
             />
-            <div style={{ color: '#777', fontSize: 13, marginTop: 8 }}>
+            <div style={{ color: '#777', fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>
               不是好友 → 掃碼加好友即自動綁定
-              <br />已是好友 → 掃碼開對話後，點選單「綁定」
+              <br />已是好友 → 開對話後，點下方「≡」選單 → 點「綁定」
             </div>
           </div>
         )}
