@@ -196,8 +196,8 @@ export default function OrderPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700 }}>0️⃣ LINE 認證（選填）</div>
                   <div style={{ color: '#555', fontSize: 14, marginTop: 4 }}>
-                    ① 掃左邊 QR 加好友 <b>{LINE_BOT_ID}</b>
-                    <br />② 在 LINE 對話點「<b>✅ 認證</b>」按鈕
+                    ① 掃左邊 QR 加好友 <b>{LINE_BOT_ID}</b>（已是好友可略過）
+                    <br />② 在 LINE 對話<b>輸入「認證」兩字送出</b>
                   </div>
                 </div>
               </div>
