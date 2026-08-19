@@ -366,6 +366,19 @@ export async function listMineOrders(lineUserId: string): Promise<OrderItem[]> {
   return rows.map((r: any) => rowToOrder(r));
 }
 
+/** 查詢該 LINE 用戶「最近一筆」訂單（自動帶 ID，不用再輸入碼） */
+export async function getLatestOrderByLineUser(lineUserId: string): Promise<OrderItem | null> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`
+    SELECT o.*, s.model AS string_model
+    FROM orders o JOIN strings s ON s.id = o.string_id
+    WHERE o.line_user_id = ${lineUserId}
+    ORDER BY o.id DESC LIMIT 1
+  `;
+  return rows.length ? rowToOrder(rows[0]) : null;
+}
+
 // ── 建立訂單（kiosk 下單）──────────────────────────────────────────────
 
 export async function createOrder(input: {
@@ -628,6 +641,30 @@ export async function transitionOrder(id: number, action: string): Promise<Order
   }
 
   return updated;
+}
+
+// ── 客人取件（kiosk 取件頁：掃碼／輸入取件碼 → 開格）──────────────────
+
+export async function pickupOrder(code: string): Promise<OrderItem> {
+  await ensureStringingSchema();
+
+  const normalized = (code || '').trim();
+  if (!/^\d{6}$/.test(normalized)) throw new Error('請輸入 6 位取件碼');
+
+  const order = await getOrderByPickupCode(normalized);
+  if (!order) throw new Error('查無此取件碼，請再確認');
+
+  if (order.status === 'done') throw new Error('此訂單已完成取件');
+  if (order.status !== 'ready') throw new Error('球拍尚未送回，請稍候再來');
+  if (!order.paid) throw new Error('尚未付款，請先至櫃檯付款');
+  if (order.currentSlot == null) throw new Error('訂單沒有分配格口，請洽櫃檯');
+
+  // 開格（排入開格指令，kiosk 輪詢後送 RS-485 開鎖）
+  // 註：不在此自動完成訂單；客人取件後由員工後台按「完成取件」釋放格口並標記完成
+  //     （關門偵測 D2 門磁上線後，再評估自動完成，見交接文件待辦第 4 項）
+  await queueOpenCell(order.currentSlot);
+
+  return order;
 }
 
 /** 取消訂單：釋放格口並刪除訂單（print_jobs 由 CASCADE 刪除） */

@@ -70,6 +70,20 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // 查詢訂單 → 自動帶出「最近一筆」訂單狀態（免輸碼）
+      if (text === '查詢訂單' || text === '查詢') {
+        const { getLatestOrderByLineUser, STATUS_LABEL } = await import('@/lib/stringing');
+        const latest = await getLatestOrderByLineUser(userId);
+        if (latest) {
+          let reply = `🧾 您最近的訂單\n━━━━━━━━━━\n單號：${latest.orderNo}\n線種：${latest.stringModel}（${latest.tension} lbs）\n取件碼：${latest.pickupCode}\n狀態：${STATUS_LABEL[latest.status]}`;
+          if (latest.currentSlot != null) reply += `\n格號：第 ${latest.currentSlot} 格`;
+          await replyMessage(event.replyToken, [{ type: 'text', text: reply }]);
+        } else {
+          await replyMessage(event.replyToken, [{ type: 'text', text: '您目前沒有訂單。請先到 kiosk 下單寄拍。' }]);
+        }
+        continue;
+      }
+
       // 客人傳 4 位認證碼 → kiosk 身份認證（備援）
       const sessionReply = await handleSessionCode(text, userId);
       if (sessionReply) {
