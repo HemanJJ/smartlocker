@@ -20,56 +20,32 @@ HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json
 RICH_MENU = {
     "size": {"width": 2500, "height": 1686},
     "selected": True,
-    "name": "羽拍有約主選單-v2",
+    "name": "羽拍有約主選單-v3",
     "chatBarText": "開啟選單",
     "areas": [
         {
             "bounds": {"x": 0, "y": 140, "width": 1250, "height": 515},
-            "action": {
-                "type": "uri",
-                "label": "穿線下單",
-                "uri": "https://smartlocker-alpha.vercel.app/order"
-            }
+            "action": {"type": "message", "label": "查詢訂單", "text": "查詢訂單"}
         },
         {
             "bounds": {"x": 1250, "y": 140, "width": 1250, "height": 515},
-            "action": {
-                "type": "uri",
-                "label": "預訂場地",
-                "uri": "https://liff.line.me/1660947211-e5z12ax6"
-            }
+            "action": {"type": "uri", "label": "預訂場地", "uri": "https://liff.line.me/1660947211-e5z12ax6"}
         },
         {
             "bounds": {"x": 0, "y": 655, "width": 1250, "height": 515},
-            "action": {
-                "type": "message",
-                "label": "查詢訂單",
-                "text": "查詢訂單"
-            }
+            "action": {"type": "uri", "label": "我的訂位", "uri": "https://difly-booking.vercel.app/bookings"}
         },
         {
             "bounds": {"x": 1250, "y": 655, "width": 1250, "height": 515},
-            "action": {
-                "type": "uri",
-                "label": "我的訂位",
-                "uri": "https://difly-booking.vercel.app/bookings"
-            }
+            "action": {"type": "message", "label": "價目表", "text": "價目表"}
         },
         {
             "bounds": {"x": 0, "y": 1170, "width": 1250, "height": 516},
-            "action": {
-                "type": "message",
-                "label": "綁定取件",
-                "text": "綁定取件"
-            }
+            "action": {"type": "message", "label": "用品商城", "text": "用品商城"}
         },
         {
             "bounds": {"x": 1250, "y": 1170, "width": 1250, "height": 516},
-            "action": {
-                "type": "message",
-                "label": "聯絡客服",
-                "text": "客服"
-            }
+            "action": {"type": "message", "label": "聯絡客服", "text": "客服"}
         }
     ]
 }
@@ -117,17 +93,17 @@ def create():
 def list_menus():
     if not TOKEN:
         print("❌ 請設定 LINE_CHANNEL_ACCESS_TOKEN"); sys.exit(1)
-    r = requests.get(API, headers=HEADERS)
+    r = requests.get(f"{API}/list", headers=HEADERS)
     if r.status_code != 200:
         print(f"❌ 讀取失敗: {r.status_code} {r.text}"); sys.exit(1)
-    menus = r.json()
+    menus = r.json().get("richmenus", [])
     if not menus:
         print("目前沒有 Rich Menu")
         return
     for m in menus:
         print(f"  ID: {m.get('richMenuId')}")
         print(f"  名稱: {m.get('name')}")
-        print(f"  狀態: {'✅ 預設' if m.get('isDefault') else ''}")
+        print(f"  狀態: {'✅ 預設' if m.get('selected') else ''}")
         print()
 
 def delete_menu(menu_id):

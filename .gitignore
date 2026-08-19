@@ -26,3 +26,12 @@ node_modules/
 
 # Claude
 .claude/
+
+# Next.js web project
+web/.next/
+web/node_modules/
+web/.env.local
+web/.env.production
+
+# 機密文件（勿上版）
+docs/換LINE-token-流程.md

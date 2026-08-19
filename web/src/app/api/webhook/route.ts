@@ -83,6 +83,14 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // 用品商城（預留，尚未上線）
+      if (text === '用品商城' || text === '商城') {
+        await replyMessage(event.replyToken, [
+          { type: 'text', text: '🛍️ 用品商城籌備中，敬請期待！' },
+        ]);
+        continue;
+      }
+
       // 客人傳 4 位認證碼 → kiosk 身份認證（備援）
       const sessionReply = await handleSessionCode(text, userId);
       if (sessionReply) {
