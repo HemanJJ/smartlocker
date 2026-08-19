@@ -156,7 +156,10 @@ export default function OrderPage() {
 
       {error && (
         <div style={{ marginTop: 16, background: '#fee', border: '1px solid #fcc', borderRadius: 12, padding: 14, color: '#c33' }}>
-          {error}
+          <div>{error}</div>
+          <button onClick={() => window.location.reload()} style={{ marginTop: 8, padding: '6px 14px', background: '#c33', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>
+            ↻ 重新整理
+          </button>
         </div>
       )}
 
