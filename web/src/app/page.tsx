@@ -10,7 +10,7 @@ export default function Home() {
       <div style={{ marginTop: 40, display: 'flex', gap: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
         <BigIcon href="/order" emoji="🏸" label="寄拍穿線" color="#06C755" />
         <BigIcon href="/admin" emoji="👤" label="員工後台" color="#3b82f6" />
-        <BigIcon href="#" emoji="📦" label="取件" color="#f5b301" disabled />
+        <BigIcon emoji="📦" label="取件" color="#f5b301" disabled />
       </div>
 
       <p style={{ marginTop: 40, color: '#999', fontSize: 13 }}>
@@ -20,20 +20,19 @@ export default function Home() {
   );
 }
 
-function BigIcon({ href, emoji, label, color, disabled }: { href: string; emoji: string; label: string; color: string; disabled?: boolean }) {
-  return (
-    <a
-      href={href}
-      onClick={disabled ? (e) => e.preventDefault() : undefined}
-      style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        width: 180, height: 180, background: disabled ? '#e5e7eb' : color, color: disabled ? '#999' : '#fff',
-        borderRadius: 24, textDecoration: 'none', boxShadow: '0 4px 14px rgba(0,0,0,.12)',
-      }}
-    >
+function BigIcon({ href, emoji, label, color, disabled }: { href?: string; emoji: string; label: string; color: string; disabled?: boolean }) {
+  const style: React.CSSProperties = {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    width: 180, height: 180, background: disabled ? '#e5e7eb' : color, color: disabled ? '#999' : '#fff',
+    borderRadius: 24, textDecoration: 'none', boxShadow: '0 4px 14px rgba(0,0,0,.12)',
+  };
+  const inner = (
+    <>
       <div style={{ fontSize: 64 }}>{emoji}</div>
       <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10 }}>{label}</div>
       {disabled && <div style={{ fontSize: 12, marginTop: 4 }}>即將開放</div>}
-    </a>
+    </>
   );
+  if (disabled || !href) return <div style={style}>{inner}</div>;
+  return <a href={href} style={style}>{inner}</a>;
 }
