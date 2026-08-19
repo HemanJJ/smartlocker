@@ -19,20 +19,14 @@ export async function POST(request: NextRequest) {
     }
 
     for (const event of events) {
-      // 加入好友：自動綁定「最近一筆未綁訂單」＋推電子收據
+      // 加入好友：不自動綁定，改引導傳 6 位取件碼（避免綁到別人的單）
       if (event.type === 'follow' && event.replyToken) {
         const uid = (event.source as any)?.userId || '';
         console.log(`[Webhook] 加入好友事件 (userId=${uid})`);
-        const { bindMostRecentUnboundOrder } = await import('@/lib/stringing');
-        const { getProfile } = await import('@/lib/line');
-        const profile = await getProfile(uid);
-        const order = await bindMostRecentUnboundOrder(uid, profile?.displayName || '');
         await replyMessage(event.replyToken, [
           {
             type: 'text',
-            text: order
-              ? `✅ 已綁定！電子收據已送到這裡。\n\n單號：${order.orderNo}\n取件碼：${order.pickupCode}`
-              : '歡迎加入羽拍有約！🏸\n\n請先在 kiosk 下單，再回來掃 QR 綁定，電子收據就會送到這裡。',
+            text: '歡迎加入羽拍有約！🏸\n\n請在 kiosk 下單後，把畫面上的 6 位取件碼直接傳給我，我就會幫您綁定這筆訂單並送出電子收據。',
           },
         ]);
         continue;

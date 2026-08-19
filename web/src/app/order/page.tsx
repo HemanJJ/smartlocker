@@ -190,8 +190,8 @@ export default function OrderPage() {
               style={{ width: 160, height: 160, marginTop: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff' }}
             />
             <div style={{ color: '#777', fontSize: 13, marginTop: 8, lineHeight: 1.6 }}>
-              不是好友 → 掃碼加好友即自動綁定
-              <br />已是好友 → 開對話後，點下方「≡」選單 → 點「綁定」
+              ① 拿手機掃 QR 打開 LINE 對話
+              <br />② 把上方的 6 位取件碼直接傳過去
             </div>
             <div style={{ color: '#c33', fontWeight: 700, fontSize: 14, marginTop: 10 }}>
               ⏱ {waitSeconds} 秒內未綁定，本單將自動作廢
