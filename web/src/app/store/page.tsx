@@ -1,4 +1,5 @@
 import { listCatalog, type VendingCategory } from '@/lib/vending';
+import { listVenues } from '@/lib/venues';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,13 +20,18 @@ export default async function StorePage({
   const { cat, venue } = await searchParams;
   const venueId = Number(venue ?? 1);
   const items = await listCatalog(venueId);
+  const venues = await listVenues(true);
+  const venueName = venues.find((v) => v.id === venueId)?.name ?? `店 ${venueId}`;
   const showCat = cat && cat in CATS ? (cat as VendingCategory) : null;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5', color: '#333', fontFamily: '-apple-system, "PingFang TC", sans-serif', display: 'flex', flexDirection: 'column' }}>
       {/* 頂部：主選單＋狀態 */}
-      <div style={{ maxWidth: 800, margin: '0 auto', width: '100%', padding: '14px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', width: '100%', padding: '14px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <a href="/" style={{ fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#fff', background: '#06C755', borderRadius: 99, padding: '4px 14px' }}>
+          🏟️ {venueName}
+        </span>
         <span style={{ fontSize: 12, color: '#b45309', background: '#fff7ed', borderRadius: 99, padding: '4px 12px' }}>
           展示中：正式販售待金流開通（Phase 2）
         </span>

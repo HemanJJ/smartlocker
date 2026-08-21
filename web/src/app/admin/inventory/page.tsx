@@ -177,20 +177,31 @@ export default function AdminInventoryPage() {
             <button type="submit" style={{ ...btnStyle, background: '#f59e0b' }}>＋ 設定</button>
           </form>
 
-          {tiers.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              {tiers.map((t) => (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
-                  <span style={{ fontWeight: 700, width: 130 }}>{t.sku}</span>
-                  <span style={{ color: '#888' }}>滿 {t.minQty} 件 →</span>
-                  <span style={{ color: '#06C755', fontWeight: 700 }}>
-                    {t.tierType === 'percent' ? `${(t.percent ?? 0) / 10} 折（${t.percent}%）` : `每件 NT$${t.unitPrice}`}
-                  </span>
-                  <button onClick={() => removeTier(t.id)} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: '#e5484d', cursor: 'pointer', fontSize: 13 }}>刪除</button>
-                </div>
-              ))}
-            </div>
-          )}
+          {(() => {
+            // 只顯示「目前分店有在賣」的商品的階梯，依商品分組濃縮
+            const skus = new Set(items.map((i) => i.sku));
+            const visible = tiers.filter((t) => skus.has(t.sku));
+            const groups: Record<string, Tier[]> = {};
+            visible.forEach((t) => { (groups[t.sku] = groups[t.sku] || []).push(t); });
+            const names: Record<string, string> = {};
+            items.forEach((i) => { names[i.sku] = i.name; });
+            return (
+              <div style={{ marginTop: 12 }}>
+                {Object.entries(groups).map(([sku, ts]) => (
+                  <div key={sku} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 14 }}>
+                    <span style={{ fontWeight: 700 }}>{names[sku] || sku}</span>
+                    <span style={{ marginLeft: 8, color: '#06C755', fontWeight: 700 }}>
+                      {ts.map((t) => t.tierType === 'percent' ? `滿${t.minQty}件→${(t.percent ?? 0) / 10}折` : `滿${t.minQty}件→NT$${t.unitPrice}`).join(' ｜ ')}
+                    </span>
+                    <button onClick={() => ts.forEach((t) => removeTier(t.id))} style={{ marginLeft: 10, border: 'none', background: 'none', color: '#e5484d', cursor: 'pointer', fontSize: 12 }}>清空此商品階梯</button>
+                  </div>
+                ))}
+                {Object.keys(groups).length === 0 && (
+                  <p style={{ fontSize: 13, color: '#999', marginTop: 8 }}>這家店目前沒有設定批發階梯</p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* 新增 */}

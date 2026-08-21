@@ -73,6 +73,28 @@ export function ensureStockSchema(): Promise<void> {
         )
       `;
 
+      // 配貨單（總倉 → 店家，內部移動）
+      await sql`
+        CREATE TABLE IF NOT EXISTS transfers (
+          id SERIAL PRIMARY KEY,
+          from_venue_id INTEGER NOT NULL,
+          to_venue_id INTEGER NOT NULL,
+          note VARCHAR(255) NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS transfer_items (
+          id SERIAL PRIMARY KEY,
+          transfer_id INTEGER NOT NULL REFERENCES transfers(id) ON DELETE CASCADE,
+          sku VARCHAR(40) NOT NULL,
+          name VARCHAR(100) NOT NULL,
+          qty INTEGER NOT NULL,
+          unit_cost INTEGER NOT NULL DEFAULT 0
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS idx_transfers_created ON transfers(created_at)`;
+
       await sql`CREATE INDEX IF NOT EXISTS idx_po_status ON purchase_orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_po_venue ON purchase_orders(venue_id)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_stocktakes_venue ON stocktakes(venue_id)`;
@@ -172,6 +194,75 @@ export async function deletePriceTier(id: number) {
   await ensureStockSchema();
   if (!id) throw new Error('缺階梯 id');
   await sql`DELETE FROM price_tiers WHERE id = ${id}`;
+}
+
+// ── 配貨到店（總倉 → 店家） ──
+
+export async function createTransfer(input: {
+  fromVenueId: number;
+  toVenueId: number;
+  note?: string;
+  items: { sku: string; name: string; qty: number }[];
+}) {
+  const sql = getDb();
+  await ensureStockSchema();
+  if (input.fromVenueId === input.toVenueId) throw new Error('不能配給自己');
+  const items = input.items.filter((i) => i.qty > 0 && i.sku);
+  if (items.length === 0) throw new Error('至少一筆商品');
+
+  // 檢查來源夠不夠 + 抓來源的價格/成本
+  const shortages: string[] = [];
+  for (const it of items) {
+    const src = await sql`SELECT qty FROM inventory WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}`;
+    const have = src.length ? src[0].qty : 0;
+    if (have < it.qty) shortages.push(`${it.name}（有 ${have}，要 ${it.qty}）`);
+  }
+  if (shortages.length) throw new Error(`庫存不足：${shortages.join('、')}`);
+
+  const res = await sql`
+    INSERT INTO transfers (from_venue_id, to_venue_id, note)
+    VALUES (${input.fromVenueId}, ${input.toVenueId}, ${input.note ?? ''})
+    RETURNING id
+  `;
+  const transferId = res[0].id;
+
+  for (const it of items) {
+    const src = await sql`SELECT name, price, cost_price, min_qty FROM inventory WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}`;
+    const s0 = src[0];
+    await sql`INSERT INTO transfer_items (transfer_id, sku, name, qty, unit_cost) VALUES (${transferId}, ${it.sku}, ${s0.name}, ${it.qty}, ${s0.cost_price})`;
+    // 來源 −
+    await sql`UPDATE inventory SET qty = qty - ${it.qty}, updated_at = NOW() WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}`;
+    // 目的地 ＋（沒有就建，沿用來源價格/成本/安全存量）
+    await sql`
+      INSERT INTO inventory (venue_id, sku, name, category, price, cost_price, min_qty, qty, cabinet_id, slot_no, status)
+      VALUES (${input.toVenueId}, ${it.sku}, ${s0.name},
+              (SELECT category FROM inventory WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}),
+              ${s0.price}, ${s0.cost_price}, ${s0.min_qty}, ${it.qty}, 'df-f', 0, 'on_shelf')
+      ON CONFLICT (venue_id, sku) DO UPDATE SET
+        qty = inventory.qty + EXCLUDED.qty,
+        cost_price = EXCLUDED.cost_price,
+        price = EXCLUDED.price,
+        updated_at = NOW()
+    `;
+  }
+  return { id: transferId, moved: items.length };
+}
+
+export async function listTransfers(): Promise<any[]> {
+  const sql = getDb();
+  await ensureStockSchema();
+  const rows = await sql`
+    SELECT t.id, t.from_venue_id, t.to_venue_id, t.note, t.created_at,
+           f.name AS from_name, t2.name AS to_name
+    FROM transfers t
+    LEFT JOIN venues f ON f.id = t.from_venue_id
+    LEFT JOIN venues t2 ON t2.id = t.to_venue_id
+    ORDER BY t.id DESC LIMIT 50
+  `;
+  for (const r of rows) {
+    r.items = await sql`SELECT sku, name, qty, unit_cost FROM transfer_items WHERE transfer_id = ${r.id}`;
+  }
+  return rows;
 }
 
 // ── 供應商 ──

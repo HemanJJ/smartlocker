@@ -6,6 +6,7 @@ export default function AdminNav({ current }: { current?: string }) {
   const items: [string, string, string][] = [
     ['/admin', '🧵 穿線', 'orders'],
     ['/admin/inventory', '📦 庫存', 'inventory'],
+    ['/admin/transfers', '📤 配貨', 'transfers'],
     ['/admin/purchase-orders', '📥 進貨', 'purchase'],
     ['/admin/stocktakes', '🔢 盤點', 'stocktakes'],
     ['/admin/reports', '📊 報表', 'reports'],
