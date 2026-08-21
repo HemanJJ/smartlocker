@@ -73,16 +73,20 @@ export function ensureStockSchema(): Promise<void> {
         )
       `;
 
-      // 配貨單（總倉 → 店家，內部移動）
+      // 配貨單（總倉 → 店家，內部移動；draft→approved 才動庫存）
       await sql`
         CREATE TABLE IF NOT EXISTS transfers (
           id SERIAL PRIMARY KEY,
           from_venue_id INTEGER NOT NULL,
           to_venue_id INTEGER NOT NULL,
           note VARCHAR(255) NOT NULL DEFAULT '',
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+          status VARCHAR(10) NOT NULL DEFAULT 'approved',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          approved_at TIMESTAMPTZ
         )
       `;
+      await sql`ALTER TABLE transfers ADD COLUMN IF NOT EXISTS status VARCHAR(10) NOT NULL DEFAULT 'approved'`;
+      await sql`ALTER TABLE transfers ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ`;
       await sql`
         CREATE TABLE IF NOT EXISTS transfer_items (
           id SERIAL PRIMARY KEY,
@@ -220,24 +224,47 @@ export async function createTransfer(input: {
   if (shortages.length) throw new Error(`庫存不足：${shortages.join('、')}`);
 
   const res = await sql`
-    INSERT INTO transfers (from_venue_id, to_venue_id, note)
-    VALUES (${input.fromVenueId}, ${input.toVenueId}, ${input.note ?? ''})
+    INSERT INTO transfers (from_venue_id, to_venue_id, note, status)
+    VALUES (${input.fromVenueId}, ${input.toVenueId}, ${input.note ?? ''}, 'draft')
     RETURNING id
   `;
   const transferId = res[0].id;
 
   for (const it of items) {
     const src = await sql`SELECT name, price, cost_price, min_qty FROM inventory WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}`;
-    const s0 = src[0];
+    const s0 = src.length ? src[0] : { name: it.name, price: 0, cost_price: 0, min_qty: 0 };
     await sql`INSERT INTO transfer_items (transfer_id, sku, name, qty, unit_cost) VALUES (${transferId}, ${it.sku}, ${s0.name}, ${it.qty}, ${s0.cost_price})`;
-    // 來源 −
-    await sql`UPDATE inventory SET qty = qty - ${it.qty}, updated_at = NOW() WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}`;
-    // 目的地 ＋（沒有就建，沿用來源價格/成本/安全存量）
+  }
+  return { id: transferId, moved: items.length, status: 'draft' };
+}
+
+/** 核准配貨：才動庫存（來源−、目的+）＋記錄＋LINE 通知 */
+export async function approveTransfer(transferId: number): Promise<{ ok: boolean; error?: string }> {
+  const sql = getDb();
+  await ensureStockSchema();
+  const rows = await sql`SELECT id, status, from_venue_id, to_venue_id FROM transfers WHERE id = ${transferId}`;
+  if (rows.length === 0) return { ok: false, error: '找不到配貨單' };
+  if (rows[0].status === 'approved') return { ok: false, error: '已核准過了' };
+  if (rows[0].status === 'rejected') return { ok: false, error: '已退回的單不能核准' };
+  const { from_venue_id: fromVenue, to_venue_id: toVenue } = rows[0];
+  const items = await sql`SELECT sku, name, qty FROM transfer_items WHERE transfer_id = ${transferId}`;
+
+  // 核准前再次驗證庫存夠不夠
+  const shortages: string[] = [];
+  for (const it of items) {
+    const src = await sql`SELECT qty FROM inventory WHERE venue_id = ${fromVenue} AND sku = ${it.sku}`;
+    const have = src.length ? src[0].qty : 0;
+    if (have < it.qty) shortages.push(`${it.name}（有 ${have}，要 ${it.qty}）`);
+  }
+  if (shortages.length) return { ok: false, error: `庫存不足，請退回調整：${shortages.join('、')}` };
+
+  for (const it of items) {
+    const src = await sql`SELECT name, category, price, cost_price, min_qty FROM inventory WHERE venue_id = ${fromVenue} AND sku = ${it.sku}`;
+    const s0 = src[0];
+    await sql`UPDATE inventory SET qty = qty - ${it.qty}, updated_at = NOW() WHERE venue_id = ${fromVenue} AND sku = ${it.sku}`;
     await sql`
       INSERT INTO inventory (venue_id, sku, name, category, price, cost_price, min_qty, qty, cabinet_id, slot_no, status)
-      VALUES (${input.toVenueId}, ${it.sku}, ${s0.name},
-              (SELECT category FROM inventory WHERE venue_id = ${input.fromVenueId} AND sku = ${it.sku}),
-              ${s0.price}, ${s0.cost_price}, ${s0.min_qty}, ${it.qty}, 'df-f', 0, 'on_shelf')
+      VALUES (${toVenue}, ${it.sku}, ${s0.name}, ${s0.category}, ${s0.price}, ${s0.cost_price}, ${s0.min_qty}, ${it.qty}, 'df-f', 0, 'on_shelf')
       ON CONFLICT (venue_id, sku) DO UPDATE SET
         qty = inventory.qty + EXCLUDED.qty,
         cost_price = EXCLUDED.cost_price,
@@ -245,22 +272,76 @@ export async function createTransfer(input: {
         updated_at = NOW()
     `;
   }
-  return { id: transferId, moved: items.length };
+  await sql`UPDATE transfers SET status = 'approved', approved_at = NOW() WHERE id = ${transferId}`;
+
+  // LINE 通知「完成配送」
+  const raw = process.env.STAFF_LINE_USER_ID || process.env.STAFF_LINE_USER_IDS || '';
+  const admins = raw.split(',').map((x) => x.trim()).filter(Boolean);
+  const f = await sql`SELECT name FROM venues WHERE id = ${fromVenue}`;
+  const t = await sql`SELECT name FROM venues WHERE id = ${toVenue}`;
+  const text = [
+    '✅ 配貨已核准・完成配送',
+    `${f[0]?.name} → ${t[0]?.name}`,
+    ...items.map((i: any) => `• ${i.name} ×${i.qty}`),
+  ].join('\n');
+  for (const admin of admins) await pushMessage(admin, [{ type: 'text', text }]);
+  return { ok: true };
+}
+
+/** 退回配貨單 */
+export async function rejectTransfer(transferId: number) {
+  const sql = getDb();
+  await ensureStockSchema();
+  const rows = await sql`SELECT id, status FROM transfers WHERE id = ${transferId}`;
+  if (rows.length === 0) throw new Error('找不到配貨單');
+  if (rows[0].status !== 'draft') throw new Error('只能退回草稿單');
+  await sql`UPDATE transfers SET status = 'rejected' WHERE id = ${transferId}`;
+}
+
+/** 草稿單改數量 */
+export async function updateTransferItems(transferId: number, items: { id: number; qty: number }[]) {
+  const sql = getDb();
+  await ensureStockSchema();
+  const rows = await sql`SELECT id, status FROM transfers WHERE id = ${transferId}`;
+  if (rows.length === 0) throw new Error('找不到配貨單');
+  if (rows[0].status !== 'draft') throw new Error('只有草稿單能改數量');
+  for (const it of items) {
+    if (it.qty < 1) throw new Error('數量至少 1');
+    await sql`UPDATE transfer_items SET qty = ${it.qty} WHERE id = ${it.id} AND transfer_id = ${transferId}`;
+  }
+}
+
+/** 需求單：低於安全存量 → 建議補貨量 = 安全×2 − 目前 */
+export async function getReplenishmentNeeds(venueId: number): Promise<any[]> {
+  const sql = getDb();
+  await ensureStockSchema();
+  const rows = await sql`
+    SELECT sku, name, qty, min_qty FROM inventory
+    WHERE venue_id = ${venueId} AND status = 'on_shelf' AND min_qty > 0 AND qty <= min_qty
+    ORDER BY qty
+  `;
+  return rows.map((r: any) => ({
+    sku: r.sku,
+    name: r.name,
+    qty: r.qty,
+    minQty: r.min_qty,
+    suggestQty: Math.max(1, r.min_qty * 2 - r.qty),
+  }));
 }
 
 export async function listTransfers(): Promise<any[]> {
   const sql = getDb();
   await ensureStockSchema();
   const rows = await sql`
-    SELECT t.id, t.from_venue_id, t.to_venue_id, t.note, t.created_at,
+    SELECT t.id, t.from_venue_id, t.to_venue_id, t.note, t.status, t.created_at, t.approved_at,
            f.name AS from_name, t2.name AS to_name
     FROM transfers t
     LEFT JOIN venues f ON f.id = t.from_venue_id
     LEFT JOIN venues t2 ON t2.id = t.to_venue_id
-    ORDER BY t.id DESC LIMIT 50
+    ORDER BY t.id DESC LIMIT 100
   `;
   for (const r of rows) {
-    r.items = await sql`SELECT sku, name, qty, unit_cost FROM transfer_items WHERE transfer_id = ${r.id}`;
+    r.items = await sql`SELECT id, sku, name, qty, unit_cost FROM transfer_items WHERE transfer_id = ${r.id}`;
   }
   return rows;
 }
