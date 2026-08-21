@@ -1,7 +1,10 @@
 # smartlocker — Racket Master 智慧拍櫃
 
+> **Vercel 已上線**：`https://smartlocker-alpha.vercel.app`
+> 詳細交接見 `HANDOFF.md` 與 `docs/obsidian-2026-08-18.md`
+
 24 小時無人取件櫃：客人輸入取件碼 → 格口自動開啟 → 關門完成。
-硬體是 UPUS-SKB 25 路 RS-485 鎖控板，主機是現場既有的 Win7。
+硬體是 UPUS-SKB 25 路 RS-485 鎖控板，主機是現場既有的 Win10。
 
 ---
 
@@ -15,7 +18,7 @@
 
 > 情境不同就換第二句，例如：
 > - 「485 已經通了，要接著把 Kiosk 上線」
-> - 「我在遠端，只能操作 Win7，硬體碰不到」
+> - 「我在遠端，只能操作 Win10，硬體碰不到」
 > - 「要把門禁功能加進去（開大門＝開櫃門）」
 >
 > **第一句永遠不變**（指向檔案），第二句講您現在的處境與目標。
@@ -26,7 +29,7 @@
 
 ```
 smartlocker/
-├── src/                    .NET 原始碼（Win7 內建 csc.exe 就能編）
+├── src/                    .NET 原始碼（Win10 內建 csc.exe 就能編）
 │   ├── UpusSkb.cs          協議庫：串口傳輸 + 主控 API + 模擬器
 │   ├── Program.cs          SkbProbe.exe  — 命令列驗板工具
 │   ├── SkbPanel.cs         SkbPanel.exe  — 視覺化驗板面板
@@ -34,14 +37,14 @@ smartlocker/
 │   ├── SheetSync.cs        Google Sheet ↔ 本機快取同步
 │   └── build.bat           一鍵編譯三支 exe
 │
-├── kiosk/                  ★ 整包複製到 Win7 的 C:\kiosk\
+├── kiosk/                  ★ 整包複製到 Win10 的 C:\kiosk\
 │   ├── web/index.html      Kiosk 前端（單檔、零相依、ES5）
 │   ├── sheet.ini           設定：串口、Sheet 網址、回寫網址
 │   ├── cells.csv           格號 → (板位址, 通道) 映射
 │   ├── setup-windows.bat   一次性系統設定（電源、螢保、8080 埠）
 │   ├── start-bridge.bat    橋接 watchdog
 │   ├── start-kiosk.bat     Chrome kiosk watchdog
-│   └── README-kiosk.md     ★ Win7 建置手冊，從零到上線
+│   └── README-kiosk.md     ★ Win10 建置手冊，從零到上線
 │
 ├── cloud/
 │   └── AppsScript-writeback.gs   取件完成回寫 Sheet（選用）
@@ -117,11 +120,11 @@ python3 skb_probe.py hunt       # 持續偵測，接對會嗶三聲 ← 換線�
 python3 skb_probe.py listen 20  # 只聽不送，按板子 RESET 測反向路徑
 ```
 
-> ⚠️ **埠號會漂。** Win7 換 USB 孔就從 `COM3` 變 `COM5`；
+> ⚠️ **埠號會漂。** Win10 換 USB 孔就從 `COM3` 變 `COM5`；
 > Mac 的 `cu.usbserial-1120` 後綴也是 USB 埠位置編號，換孔就變。
 > 上樹莓派後務必用 **udev rules 綁 by-id**，固定成 `/dev/skb`、`/dev/labelprinter`。
 
-### Win7 上線
+### Win10 上線
 
 見 `kiosk/README-kiosk.md`，完整四步。摘要：
 
@@ -142,7 +145,7 @@ SkbBridge.exe                       正式（讀 sheet.ini）
 | HTTP 橋接 + 模擬器 | ✅ 完成 |
 | Kiosk 前端（事件驅動 + 三種失敗畫面） | ✅ 完成，Node 假 DOM 測試全過 |
 | Google Sheet 取件碼 | ✅ 完成（CSV 讀取 + 本機快取 + 背景回寫） |
-| Win7 kiosk 部署腳本 | ✅ 完成 |
+| Win10 kiosk 部署腳本 | ✅ 完成 |
 | **實體 485 通訊** | ⚠️ **未通** — 見下方 |
 | 寄件／穿線流程接後端 | ❌ 尚未 |
 | 管理後台真實資料 | ❌ 仍是硬編碼假資料 |
@@ -163,7 +166,7 @@ SkbBridge.exe                       正式（讀 sheet.ini）
 | 時間 | 事件 |
 |---|---|
 | 前兩天 | 紅線接在轉換器 `A` 腳上約 48 小時 |
-| 08-10 早 | Win7 上測到一半，`COM5` 憑空消失（`端口 "COM5" 不存在`） |
+| 08-10 早 | Win10 上測到一半，`COM5` 憑空消失（`端口 "COM5" 不存在`） |
 | 08-10 早 | 重插後回來，`ConfigManagerErrorCode 0 / Status OK`，但仍 0 bytes |
 | 08-10 午 | 改用 Mac 測，`/dev/cu.usbserial-1120` 抓得到、埠開得起來，仍 0 bytes |
 | 08-10 午 | Mac 上也憑空消失。**拆掉所有線、換 USB 孔，三次 `ports` 全空** |
@@ -180,18 +183,18 @@ SkbBridge.exe                       正式（讀 sheet.ini）
 
 #### 已排除的主機側（兩台不同電腦、兩種 OS，結果相同）
 
-Win7 + C# `SkbProbe.exe` 與 macOS + Python `tools/skb_probe.py`，
+Win10 + C# `SkbProbe.exe` 與 macOS + Python `tools/skb_probe.py`，
 送出的幀完全相同（`55 A1 FF DF 00 D4`），兩邊都是 0 bytes。**主機側 100% 排除。**
 
 #### 已經測過的接線組合（全部 0 bytes）
 
 | GND2 | A | B | 平台 |
 |---|---|---|---|
-| 黃 | 紅 | 綠 | Win7（前兩天） |
-| 紅 | 綠 | 黃 | Win7 |
-| 空 | 綠 | 黃 | Win7 |
-| 空 | 黃 | 綠 | Win7 |
-| 紅 | 黃 | 綠 | Win7 + Mac |
+| 黃 | 紅 | 綠 | Win10（前兩天） |
+| 紅 | 綠 | 黃 | Win10 |
+| 空 | 綠 | 黃 | Win10 |
+| 空 | 黃 | 綠 | Win10 |
+| 紅 | 黃 | 綠 | Win10 + Mac |
 
 08-10 下午在 Mac 上把**六組全部跑完**（`hunt` 296 輪 / 約 8 分鐘），全數 0 bytes。
 接著把 6P 壓接線**改插到板上另一個白色 6P 座**，`GND2=綠 / A=紅 / B=黃` 及其
@@ -305,7 +308,7 @@ A/B 對調版本各測一次，仍是 0 bytes。
 2. **對應型號的通訊協定文件**——現有的 V3.1 極可能不是這批板子的
 3. **廠商自己的上位機測試軟體（.exe）** ← **最重要**
 
-拿到第 3 項後：在 Win7 上跑廠商軟體開鎖，同時用第二支轉換器掛在同一條匯流排上跑
+拿到第 3 項後：在 Win10 上跑廠商軟體開鎖，同時用第二支轉換器掛在同一條匯流排上跑
 `python3 tools/skb_probe.py listen 120`，**把真實指令直接抓下來**。
 協議十分鐘就能逆向出來，不必再猜。
 
@@ -449,7 +452,7 @@ USB-TTL 5V   →  不接（板子自己有電）
 Sheet 未設定 → 退回 DEMO 碼
 ```
 
-C# 目前無自動化測試，改完在 Win7 跑 `src/build.bat` 確認能編。
+C# 目前無自動化測試，改完在 Win10 跑 `src/build.bat` 確認能編。
 
 ---
 
@@ -458,6 +461,6 @@ C# 目前無自動化測試，改完在 Win7 跑 `src/build.bat` 確認能編。
 1. **.NET 4.5 必裝。** Google 強制 TLS 1.2，.NET 4.0 預設只談 TLS 1.0。
    沒裝的話 Sheet 同步永遠失敗（開鎖不受影響，但拿不到新碼）。
 2. **發布的 CSV 網址是公開的。** 只放取件碼和格號，不要放客人姓名電話。
-3. **Chrome 109 已停止更新。** Win7 的天花板，安全性靠內網隔離。
+3. **Chrome 109 已停止更新。** Win10 的天花板，安全性靠內網隔離。
 4. **Ctrl+Alt+Del 擋不掉。** 最實際的防護是拔掉實體鍵盤
    （掃碼器是 HID 模擬，不受影響）。

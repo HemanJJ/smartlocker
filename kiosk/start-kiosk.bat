@@ -2,11 +2,9 @@
 REM ============================================================
 REM  start-kiosk.bat  -  Chrome kiosk watchdog loop
 REM
-REM  Waits for SkbBridge to answer, then launches Chrome in
-REM  kiosk mode. If Chrome is closed or crashes, it restarts.
-REM
-REM  Edit CHROME below if Chrome is installed elsewhere.
-REM  Win7 supports Chrome up to version 109.
+REM  方案 A：kiosk 畫面住在雲端（smartlocker-alpha.vercel.app），
+REM  現場機器只是全螢幕 Chrome。SkbBridge 仍在本機管 485 開格。
+REM  Win10 已可裝最新版 Chrome。
 REM
 REM  NOTE: ASCII-only on purpose. See README-kiosk.md for the
 REM        Chinese explanation of every flag.
@@ -15,7 +13,7 @@ REM ============================================================
 title Kiosk Watchdog
 cd /d "%~dp0"
 
-set "URL=http://localhost:8080/"
+set "URL=https://smartlocker-alpha.vercel.app/"
 set "PROFILE=%~dp0chrome-profile"
 
 set "CHROME=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"

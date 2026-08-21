@@ -46,6 +46,10 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
+            "Google.Apis.Sheets.v4": {
+              "target": "Package",
+              "version": "[1.69.0.3694, )"
+            },
             "LineBotSDK": {
               "target": "Package",
               "version": "[2.18.45, )"

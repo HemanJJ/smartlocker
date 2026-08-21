@@ -34,3 +34,14 @@
 /Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/SkbApi.pdb
 /Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/SkbApi.genruntimeconfig.cache
 /Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/ref/SkbApi.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/Google.Apis.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/Google.Apis.Auth.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/Google.Apis.Core.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/Google.Apis.Sheets.v4.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/System.CodeDom.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/System.Management.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/runtimes/win/lib/net7.0/System.Management.dll
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/bin/Debug/net10.0/SkbApi.staticwebassets.runtime.json
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/compressed/5mg17vyexh-{0}-orej3bwcr8-orej3bwcr8.gz
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/compressed/ta9td6dba6-{0}-maw57wd0wj-maw57wd0wj.gz
+/Users/defi/Desktop/projects/code/smartlocker/src/SkbApi/obj/Debug/net10.0/compressed/f4vsxup3c7-{0}-as6nvru974-as6nvru974.gz

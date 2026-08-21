@@ -4,17 +4,25 @@ export default function Home() {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       minHeight: '100vh', fontFamily: '-apple-system, sans-serif', background: '#f5f5f5', color: '#333'
     }}>
-      <h1 style={{ fontSize: '2.2rem', fontWeight: 700, color: '#06C755' }}>🏸 羽拍有約</h1>
-      <p style={{ marginTop: 8, color: '#666', fontSize: 18 }}>請選擇服務</p>
+      <h1 style={{ fontSize: '2.2rem', fontWeight: 700, color: '#06C755' }}>🏸 羽拍有約 · 24h 無人店</h1>
+      <p style={{ marginTop: 8, color: '#666', fontSize: 18 }}>訂場・穿線・補給，一條 LINE 全搞定</p>
 
-      <div style={{ marginTop: 40, display: 'flex', gap: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <BigIcon href="/order" emoji="🏸" label="寄拍穿線" color="#06C755" />
-        <BigIcon href="/admin" emoji="👤" label="員工後台" color="#3b82f6" />
-        <BigIcon emoji="📦" label="取件" color="#f5b301" disabled />
+      {/* 第一層：主服務（2×2） */}
+      <div style={{ marginTop: 40, display: 'flex', gap: 28, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 640 }}>
+        <BigIcon href="/order" emoji="🧵" label="寄拍穿線" color="#06C755" />
+        <BigIcon href="/store?cat=badminton" emoji="🏸" label="羽球用品" color="#3b82f6" />
+        <BigIcon href="/store?cat=ramen" emoji="🍜" label="泡麵" color="#f59e0b" />
+        <BigIcon href="/pickup" emoji="📦" label="取件" color="#f5b301" />
       </div>
 
+      {/* 第二層入口＋後台：細字不搶眼 */}
       <p style={{ marginTop: 40, color: '#999', fontSize: 13 }}>
-        取件功能待格口硬體接上後開放（目前請洽櫃檯）
+        取件：輸入取件碼即可開格（模擬板可直接測試）
+      </p>
+      <p style={{ marginTop: 8, color: '#bbb', fontSize: 13 }}>
+        <a href="/store" style={{ color: '#bbb', textDecoration: 'none' }}>其他用品</a>
+        <span style={{ margin: '0 10px' }}>·</span>
+        <a href="/admin" style={{ color: '#bbb', textDecoration: 'none' }}>員工後台</a>
       </p>
     </div>
   );

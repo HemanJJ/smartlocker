@@ -42,6 +42,11 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
+  async function logout() {
+    await fetch('/api/admin/logout', { method: 'POST' });
+    window.location.href = '/admin/login';
+  }
+
   const refresh = useCallback(async () => {
     try {
       const [oRes, sRes] = await Promise.all([fetch('/api/orders'), fetch('/api/slots')]);
@@ -128,11 +133,20 @@ export default function AdminPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 700 }}>🧵 穿線訂單後台</h1>
         <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/admin/inventory" style={{ padding: '8px 16px', background: '#06C755', color: '#fff', borderRadius: 10, fontSize: 14, textDecoration: 'none' }}>
+            📦 販售庫存
+          </a>
           <button onClick={refresh} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
             ↻ 重新整理
           </button>
           <button onClick={resetAll} style={{ padding: '8px 16px', background: '#e5484d', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
             🗑️ 清空測試資料
+          </button>
+          <a href="/admin/password" style={{ padding: '8px 16px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 13, textDecoration: 'none' }}>
+            🔑 改密碼
+          </a>
+          <button onClick={logout} style={{ padding: '8px 16px', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 13 }}>
+            登出
           </button>
         </div>
       </div>

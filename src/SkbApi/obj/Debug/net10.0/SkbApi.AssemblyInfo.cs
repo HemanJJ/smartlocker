@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SkbApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1316a929a200ffac5475f1a2de3f251f74fbfc63")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+326f1855b7954d9099ec7af69975778923984202")]
 [assembly: System.Reflection.AssemblyProductAttribute("SkbApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SkbApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
