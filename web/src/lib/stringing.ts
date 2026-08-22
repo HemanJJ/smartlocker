@@ -803,7 +803,7 @@ async function notifyCustomerOrder(order: OrderItem): Promise<void> {
   if (!order.lineUserId) return;
   const dear = order.lineName ? `親愛的 ${order.lineName}，您好！\n` : '';
   const text =
-    `🧾 羽拍有約 · 電子收據\n` +
+    `🧾 Dearfly · 電子收據\n` +
     dear +
     `━━━━━━━━━━━━\n` +
     `單號：${order.orderNo}\n` +
@@ -829,6 +829,6 @@ async function notifyCustomerPickup(order: OrderItem): Promise<void> {
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot ?? '-'} 格\n\n` +
-    `請至羽拍有約（太平永成店）輸入取件碼取件。`;
+    `請至 Dearfly（太平永成店）輸入取件碼取件。`;
   await pushMessage(order.lineUserId, [{ type: 'text', text }]);
 }

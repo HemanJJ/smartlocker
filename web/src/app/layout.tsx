@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "羽拍有約 · 穿線服務",
-  description: "羽拍穿線服務：kiosk 下單、員工後台、LINE 通知",
+  title: "Dearfly · 穿線服務",
+  description: "Dearfly 穿線服務：kiosk 下單、員工後台、LINE 通知",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         await replyMessage(event.replyToken, [
           {
             type: 'text',
-            text: '歡迎加入羽拍有約！🏸\n\n請在 kiosk 下單後，把畫面上的 6 位取件碼直接傳給我，我就會幫您綁定這筆訂單並送出電子收據。',
+            text: '歡迎加入 Dearfly！🏸\n\n請在 kiosk 下單後，把畫面上的 6 位取件碼直接傳給我，我就會幫您綁定這筆訂單並送出電子收據。',
           },
         ]);
         continue;
@@ -157,7 +157,7 @@ async function handleOrderCode(text: string, userId: string): Promise<string | n
 
   const bound = await bindCustomer(code, userId);
 
-  let reply = `🧾 羽拍有約 · 電子收據\n` +
+  let reply = `🧾 Dearfly · 電子收據\n` +
     `━━━━━━━━━━━━\n` +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
@@ -209,7 +209,7 @@ async function quickReply(userMessage: string): Promise<string> {
           {
             role: 'system',
             content:
-              '你是「羽拍有約」的 LINE 客服助理，名字叫小羽。回答只使用繁體中文，1-3 句話就好，語氣親切自然。不確定的不要亂編，就說「我幫您確認一下」。',
+              '你是「Dearfly」的 LINE 客服助理，名字叫小羽。回答只使用繁體中文，1-3 句話就好，語氣親切自然。不確定的不要亂編，就說「我幫您確認一下」。',
           },
           { role: 'user', content: userMessage },
         ],

@@ -4,7 +4,9 @@ export default function Home() {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       minHeight: '100vh', fontFamily: '-apple-system, sans-serif', background: '#f5f5f5', color: '#333'
     }}>
-      <h1 style={{ fontSize: '2.2rem', fontWeight: 700, color: '#06C755' }}>🏸 羽拍有約 · 24h 無人店</h1>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/dearfly-logo.png" alt="Dearfly" style={{ height: 72, width: 'auto', marginBottom: 8 }} />
+      <h1 style={{ fontSize: '2.2rem', fontWeight: 700, color: '#06C755' }}>Dearfly · 24h 無人店</h1>
       <p style={{ marginTop: 8, color: '#666', fontSize: 18 }}>訂場・穿線・補給，一條 LINE 全搞定</p>
 
       {/* 第一層：主服務（2×2） */}
