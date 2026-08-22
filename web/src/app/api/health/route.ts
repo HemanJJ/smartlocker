@@ -5,7 +5,7 @@ export const runtime = 'edge';
 
 /**
  * 健康檢查：測資料庫連線。
- * 供 UptimeRobot 打（https://smartlocker-alpha.vercel.app/api/health）。
+ * 供 UptimeRobot 打（https://shop.dearfly.com.tw/api/health）。
  * 正常 200 { ok:true }；DB 掛了 500 { ok:false }。
  */
 export async function GET() {
