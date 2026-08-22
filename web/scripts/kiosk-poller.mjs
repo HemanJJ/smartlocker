@@ -17,7 +17,6 @@ import os from 'os';
 import path from 'path';
 
 const require = createRequire(import.meta.url);
-const QRCode = require('qrcode');
 const sharp = require('sharp');
 
 const BASE = process.env.BASE_URL || 'https://smartlocker-alpha.vercel.app';
@@ -55,16 +54,14 @@ async function sendUnlock(slotNo) {
 // ── 貼紙 ──
 async function generateLabel(job) {
   const L = job.label;
-  const qr = await QRCode.toDataURL(L.pickupCode, { width: 280, margin: 1 });
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="406" height="609" viewBox="0 0 406 609">
-  <rect width="406" height="609" fill="#fff"/>
-  <image href="${qr}" x="63" y="28" width="280" height="280"/>
-  <text x="203" y="338" font-family="Arial, sans-serif" font-size="44" font-weight="bold" text-anchor="middle" fill="#000">${L.pickupCode}</text>
-  <text x="203" y="386" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" fill="#000">${L.model}  ${L.tension} lbs</text>
-  <text x="203" y="428" font-family="Arial, sans-serif" font-size="28" text-anchor="middle" fill="#000">NT$${L.price}</text>
-  <text x="203" y="478" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="#000">SLOT ${L.slotNo}</text>
-  <text x="203" y="540" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#777">${L.orderNo}</text>
-  <text x="203" y="575" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#777">羽拍有約 · 穿線</text>
+  const colorText = L.color ? ` · ${L.color}` : '';
+  // 4×3 cm 貼紙 @203dpi ≈ 320×240 px；內容：線種＋色、磅數、取件碼（無 QR/格號/金額）
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240">
+  <rect width="320" height="240" fill="#fff"/>
+  <text x="160" y="54" font-family="Arial, sans-serif" font-size="26" font-weight="bold" text-anchor="middle" fill="#000">${L.model}${colorText}</text>
+  <text x="160" y="94" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#000">${L.tension} lbs</text>
+  <text x="160" y="132" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#777">取件碼</text>
+  <text x="160" y="198" font-family="Arial, sans-serif" font-size="58" font-weight="bold" text-anchor="middle" fill="#000">${L.pickupCode}</text>
 </svg>`;
   return sharp(Buffer.from(svg)).png().toBuffer();
 }

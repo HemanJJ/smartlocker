@@ -13,12 +13,14 @@ interface StringItem {
   feature: string;
   maxTension: number;
   price: number;
+  colors: string[];
 }
 
 interface OrderItem {
   id: number;
   orderNo: string;
   stringModel: string;
+  color: string;
   tension: number;
   price: number;
   pickupCode: string;
@@ -45,10 +47,12 @@ export default function OrderPage() {
   const [doneSeconds, setDoneSeconds] = useState(DONE_SECONDS);
   const [step, setStep] = useState(1); // 1 選線種 / 2 選磅數 / 3 選填＋下單
   const [tensionFocus, setTensionFocus] = useState(false); // 磅數框選中時亮框
+  const [color, setColor] = useState(''); // 顏色（''＝不指定）
 
   function reset() {
     setResult(null);
     setNote('');
+    setColor('');
     setWaitSeconds(WAIT_BIND_SECONDS);
     setDoneSeconds(DONE_SECONDS);
     setStep(1);
@@ -137,6 +141,7 @@ export default function OrderPage() {
     setSelectedId(id);
     const s = strings.find((x) => x.id === id);
     if (s) setTension((t) => Math.min(t, s.maxTension));
+    setColor(''); // 換線種就清掉顏色（色綁線種）
     setStep(2);
   }
 
@@ -148,7 +153,7 @@ export default function OrderPage() {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stringId: selected.id, tension, customerName: '', note }),
+        body: JSON.stringify({ stringId: selected.id, tension, color, customerName: '', note }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '下單失敗');
@@ -178,7 +183,7 @@ export default function OrderPage() {
           ) : (
             <div style={{ color: '#c90', fontSize: 15, marginTop: 8 }}>綁定 LINE 後自動分配格口</div>
           )}
-          <div style={{ color: '#999', fontSize: 15, marginTop: 4 }}>{result.stringModel} · {result.tension} lbs · NT${result.price}</div>
+          <div style={{ color: '#999', fontSize: 15, marginTop: 4 }}>{result.stringModel}{result.color ? ` · ${result.color}` : ''} · {result.tension} lbs · NT${result.price}</div>
         </div>
 
         {result.lineUserId ? (
@@ -287,6 +292,18 @@ export default function OrderPage() {
             <button onClick={() => setTension((t) => Math.min(selected.maxTension, t + 1))} style={{ ...stepperStyle, width: 76, height: 76, fontSize: 36 }}>＋</button>
             <span style={{ color: '#999', fontSize: 16 }}>上限 {selected.maxTension} lbs</span>
           </div>
+
+          {/* 選顏色（綁線種：只出現這條線有的色） */}
+          <div style={{ marginTop: 24 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>🎨 選擇顏色（可不選）</div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button onClick={() => setColor('')} style={{ ...colorChip, background: color === '' ? '#06C755' : '#fff', color: color === '' ? '#fff' : '#333', borderColor: color === '' ? '#06C755' : '#ddd' }}>不指定</button>
+              {selected.colors.map((c) => (
+                <button key={c} onClick={() => setColor(c)} style={{ ...colorChip, background: color === c ? '#06C755' : '#fff', color: color === c ? '#fff' : '#333', borderColor: color === c ? '#06C755' : '#ddd' }}>{c}</button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
             <button onClick={() => setStep(1)} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 上一步</button>
             <button onClick={() => setStep(3)} style={{ ...navBtn, background: '#06C755', color: '#fff' }}>下一步 ▶</button>
@@ -306,7 +323,7 @@ export default function OrderPage() {
           />
 
           <div style={{ marginTop: 18, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 16, fontSize: 18 }}>
-            <div>{selected.model}（{selected.gauge}）· <b>{tension}</b> lbs · NT$<b>{selected.price}</b></div>
+            <div>{selected.model}（{selected.gauge}）· <b>{tension}</b> lbs{color ? ` · ${color}` : ''} · NT$<b>{selected.price}</b></div>
           </div>
 
           <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
@@ -338,6 +355,17 @@ const stepperStyle: React.CSSProperties = {
   border: '2px solid #ddd',
   borderRadius: 14,
   cursor: 'pointer',
+};
+
+const colorChip: React.CSSProperties = {
+  minWidth: 64,
+  padding: '14px 20px',
+  fontSize: 20,
+  fontWeight: 700,
+  border: '2px solid #ddd',
+  borderRadius: 14,
+  cursor: 'pointer',
+  fontFamily: 'inherit',
 };
 
 const navBtn: React.CSSProperties = {

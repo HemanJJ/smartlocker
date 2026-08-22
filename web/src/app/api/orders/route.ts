@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     const order = await createOrder({
       stringId: Number(body.stringId),
       tension: Number(body.tension),
+      color: body.color || '',
       lineUserId: body.lineUserId || '',
       customerName: body.customerName || '',
       note: body.note || '',

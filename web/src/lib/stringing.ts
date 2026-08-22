@@ -21,6 +21,7 @@ export interface StringItem {
   maxTension: number;
   price: number;
   isActive: boolean;
+  colors: string[];
 }
 
 export interface OrderItem {
@@ -28,6 +29,7 @@ export interface OrderItem {
   orderNo: string;
   stringId: number;
   stringModel: string;
+  color: string;
   tension: number;
   price: number;
   pickupCode: string;
@@ -57,6 +59,7 @@ export interface PrintJobItem {
     orderNo: string;
     pickupCode: string;
     model: string;
+    color: string;
     tension: number;
     price: number;
     slotNo: number;
@@ -107,6 +110,7 @@ export function ensureStringingSchema(): Promise<void> {
           feature VARCHAR(40) NOT NULL DEFAULT '',
           max_tension INTEGER NOT NULL DEFAULT 30,
           price INTEGER NOT NULL DEFAULT 0,
+          colors VARCHAR(255) NOT NULL DEFAULT '',
           is_active BOOLEAN NOT NULL DEFAULT TRUE,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
@@ -127,6 +131,7 @@ export function ensureStringingSchema(): Promise<void> {
           id SERIAL PRIMARY KEY,
           order_no VARCHAR(30) NOT NULL UNIQUE,
           string_id INTEGER NOT NULL REFERENCES strings(id),
+          color VARCHAR(40) NOT NULL DEFAULT '',
           tension INTEGER NOT NULL,
           price INTEGER NOT NULL DEFAULT 0,
           pickup_code VARCHAR(6) NOT NULL UNIQUE,
@@ -143,6 +148,8 @@ export function ensureStringingSchema(): Promise<void> {
       `;
 
       await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS line_name VARCHAR(255) NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE strings ADD COLUMN IF NOT EXISTS colors VARCHAR(255) NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS color VARCHAR(40) NOT NULL DEFAULT ''`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS print_jobs (
@@ -200,6 +207,12 @@ export function ensureStringingSchema(): Promise<void> {
         ON CONFLICT (model) DO NOTHING
       `;
 
+      // 預設色（尚未向供應商確認色卡前，先給通用 5 色，之後可人工調整每條線）
+      await sql`
+        UPDATE strings SET colors = '白,黃,黑,藍,紅'
+        WHERE (colors IS NULL OR colors = '') AND is_active = TRUE
+      `;
+
       // 停用舊線種（已不再販售）
       await sql`
         UPDATE strings SET is_active = FALSE
@@ -239,6 +252,7 @@ function rowToString(row: any): StringItem {
     maxTension: Number(row.max_tension),
     price: Number(row.price ?? 0),
     isActive: Boolean(row.is_active),
+    colors: (row.colors || '').split(',').map((s: string) => s.trim()).filter(Boolean),
   };
 }
 
@@ -248,6 +262,7 @@ function rowToOrder(row: any, modelOverride?: string): OrderItem {
     orderNo: row.order_no,
     stringId: Number(row.string_id),
     stringModel: modelOverride || row.string_model || '',
+    color: row.color || '',
     tension: Number(row.tension),
     price: Number(row.price ?? 0),
     pickupCode: row.pickup_code,
@@ -390,6 +405,7 @@ export async function getLatestOrderByLineUser(lineUserId: string): Promise<Orde
 export async function createOrder(input: {
   stringId: number;
   tension: number;
+  color?: string;
   lineUserId?: string;
   customerName?: string;
   note?: string;
@@ -404,6 +420,12 @@ export async function createOrder(input: {
   if (!Number.isInteger(tension) || tension < 1) throw new Error('磅數無效');
   if (tension > stringItem.maxTension) {
     throw new Error(`「${stringItem.model}」磅數上限為 ${stringItem.maxTension} lbs`);
+  }
+
+  // 顏色：不指定（''）或必須在該線種的可用色內
+  const color = (input.color || '').trim();
+  if (color && stringItem.colors.length > 0 && !stringItem.colors.includes(color)) {
+    throw new Error(`「${stringItem.model}」無此顏色「${color}」`);
   }
 
   // 產生不重複 6 位取件碼
@@ -427,8 +449,8 @@ export async function createOrder(input: {
 
   // 只建單，不配格、不印貼紙。會員綁定 LINE 後（finalizeAfterBind）才佔格＋印＋通知。
   const inserted = await sql`
-    INSERT INTO orders (order_no, string_id, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
-    VALUES (${orderNo}, ${stringItem.id}, ${tension}, ${stringItem.price}, ${pickupCode}, 'pending', FALSE,
+    INSERT INTO orders (order_no, string_id, color, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
+    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, 'pending', FALSE,
             ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, NULL)
     RETURNING *
   `;
@@ -439,7 +461,7 @@ export async function createOrder(input: {
 // ── 列印佇列（kiosk 輪詢印貼紙）────────────────────────────────────────
 
 function rowToPrintJob(row: any): PrintJobItem {
-  let label: PrintJobItem['label'] = { orderNo: '', pickupCode: '', model: '', tension: 0, price: 0, slotNo: 0 };
+  let label: PrintJobItem['label'] = { orderNo: '', pickupCode: '', model: '', color: '', tension: 0, price: 0, slotNo: 0 };
   try {
     label = JSON.parse(row.label_data || '{}');
   } catch {
@@ -706,6 +728,7 @@ async function finalizeAfterBind(orderId: number): Promise<OrderItem | null> {
     orderNo: order.orderNo,
     pickupCode: order.pickupCode,
     model: order.stringModel,
+    color: order.color,
     tension: order.tension,
     price: order.price,
     slotNo,
@@ -788,6 +811,7 @@ async function notifyStaffNewOrder(order: OrderItem): Promise<void> {
     `🧵 新穿線單！\n\n` +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
+    `顏色：${order.color || '不指定'}\n` +
     `費用：NT$${order.price}\n` +
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot} 格\n` +
@@ -808,6 +832,7 @@ async function notifyCustomerOrder(order: OrderItem): Promise<void> {
     `━━━━━━━━━━━━\n` +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
+    `顏色：${order.color || '不指定'}\n` +
     `費用：NT$${order.price}\n` +
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot} 格\n` +
@@ -827,6 +852,7 @@ async function notifyCustomerPickup(order: OrderItem): Promise<void> {
     dear +
     `單號：${order.orderNo}\n` +
     `線種：${order.stringModel}（${order.tension} lbs）\n` +
+    `顏色：${order.color || '不指定'}\n` +
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot ?? '-'} 格\n\n` +
     `請至 Dearfly（太平永成店）輸入取件碼取件。`;
