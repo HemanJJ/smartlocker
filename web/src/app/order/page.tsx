@@ -319,7 +319,7 @@ export default function OrderPage() {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="例：拆舊線 / 加厚握把 / 兩支拍（選填）"
-            style={{ width: '100%', padding: 16, border: '2px solid #ddd', borderRadius: 14, fontSize: 20, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: 16, border: '2px solid #ddd', borderRadius: 14, fontSize: 20, boxSizing: 'border-box', background: '#1a1a1a', color: '#fff', caretColor: '#fff' }}
           />
 
           <div style={{ marginTop: 18, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 16, fontSize: 18 }}>

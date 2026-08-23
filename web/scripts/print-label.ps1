@@ -9,10 +9,12 @@ param(
   [string]$Line2 = "24 lbs",            # 磅數 (line 2 left)
   [string]$Line3 = 'NT$250',            # 金額 (line 3 left)
   [string]$Line4 = "取件號 924588",      # 取件號 (line 4)
+  [string]$Slot = "格 5",                # slot number (line 4 right)
+  [string]$Note = "",                    # optional remark (right of line 1)
   [string]$ConfigFile = ""              # optional JSON config (poller uses this; avoids CLI escaping)
 )
 
-# If a config JSON is supplied, it overrides the params above (fields: printer,store,storeEn,line1..line4).
+# If a config JSON is supplied, it overrides the params above (fields: printer,store,storeEn,line1..line4,slot).
 if ($ConfigFile -and (Test-Path $ConfigFile)) {
   $cfg = Get-Content $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
   if ($cfg.printer)  { $Printer = [string]$cfg.printer }
@@ -22,6 +24,8 @@ if ($ConfigFile -and (Test-Path $ConfigFile)) {
   if ($cfg.line2)    { $Line2 = [string]$cfg.line2 }
   if ($cfg.line3)    { $Line3 = [string]$cfg.line3 }
   if ($cfg.line4)    { $Line4 = [string]$cfg.line4 }
+  if ($cfg.slot)     { $Slot = [string]$cfg.slot }
+  if ($cfg.note)     { $Note = [string]$cfg.note }
 }
 
 Add-Type -AssemblyName System.Drawing
@@ -47,6 +51,8 @@ $script:l1 = $Line1
 $script:l2 = $Line2
 $script:l3 = $Line3
 $script:l4 = $Line4
+$script:slot = $Slot
+$script:note = $Note
 
 $doc.add_PrintPage({
   param($s, $e)
@@ -58,16 +64,24 @@ $doc.add_PrintPage({
   $f9b = New-Object System.Drawing.Font("Microsoft JhengHei", 9, [System.Drawing.FontStyle]::Bold)
   $f10 = New-Object System.Drawing.Font("Microsoft JhengHei", 10)
 
-  # Line 1: 線種+色 (unchanged, 8pt)
-  $g.DrawString($script:l1, $f8, $brush, 2, 2)
+  # Line 1: 線種+色 (8pt) + optional note on the right (整版面左移 2mm)
+  $g.DrawString($script:l1, $f8, $brush, 0, 2)
+  if ($script:note) {
+    $w1 = $g.MeasureString($script:l1, $f8).Width
+    $g.DrawString($script:note, $f8, $brush, (0 + $w1 + 1), 2)
+  }
   # Line 2: 磅數 + English store  (9pt, same size)
-  $g.DrawString($script:l2, $f9b, $brush, 2, 9)
-  $g.DrawString($script:storeEn, $f9b, $brush, 21, 9)
-  # Line 3: 金額 + Chinese store  (8pt, store moved right two CJK chars)
-  $g.DrawString($script:l3, $f8, $brush, 2, 16)
-  $g.DrawString($script:store, $f8, $brush, 22, 16)
-  # Line 4: 取件號 (10pt, one level bigger)
-  $g.DrawString($script:l4, $f10, $brush, 2, 23)
+  $g.DrawString($script:l2, $f9b, $brush, 0, 9)
+  $g.DrawString($script:storeEn, $f9b, $brush, 19, 9)
+  # Line 3: 金額 + Chinese store  (8pt)
+  $g.DrawString($script:l3, $f8, $brush, 0, 16)
+  $g.DrawString($script:store, $f8, $brush, 20, 16)
+  # Line 4: 取件號 (10pt, one level bigger) + 格號 on the right
+  $g.DrawString($script:l4, $f10, $brush, 0, 23)
+  if ($script:slot) {
+    $w4 = $g.MeasureString($script:l4, $f10).Width
+    $g.DrawString($script:slot, $f8, $brush, (0 + $w4 + 1), 24)
+  }
 })
 
 $doc.Print()

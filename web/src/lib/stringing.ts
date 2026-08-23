@@ -732,6 +732,7 @@ async function finalizeAfterBind(orderId: number): Promise<OrderItem | null> {
     tension: order.tension,
     price: order.price,
     slotNo,
+    note: order.note || '',
   });
   await sql`INSERT INTO print_jobs (order_id, label_data) VALUES (${order.id}, ${labelData})`;
 
