@@ -16,11 +16,13 @@
   用 `System.Drawing.Printing.PrintDocument` 畫4行（Windows 中文字型「微軟正黑」渲染，所以繁體全覆蓋：太平永成店/長壽店都印得出），透過 Seagull 驅動送印。
 - **換文字＝改腳本參數**（`店名`/`店名英文`/`線種`/`磅數`/`金額`/`取件號`）再跑一次 → 這就是你要的「editor」，不必 GUI
 - **✅ 自動帶（接訂單資料，已做＋已驗證 2026-08-23）**：
-  - `print-label.ps1` 支援 `-ConfigFile <json>`（欄位 `store/storeEn/line1..line4/printer`），供程式安全傳中文/`$`
-  - **`kiosk-print-poller.ps1`（PowerShell，kiosk 無 node 可跑）** 輪詢 `/api/print-jobs?status=pending` → 用 `job.label`(model+color/tension/price/pickupCode) 自動組 4 行 → 寫暫存 JSON → `powershell print-label.ps1 -ConfigFile` → 開格 → 回報完成；`-Once`＝單步
-  - **kiosk 常駐**：`schtasks` 建「KioskPrintPoller」排程任務（onlogon）跑 `launch-poller.cmd` → 輸出導向 `poller.log`；每 3 秒輪詢、有新單自動印
+  - `print-label.ps1` 支援 `-ConfigFile <json>`（欄位 `store/storeEn/line1..line4/slot/note/printer`）；用 `System.Drawing.PrintDocument` 直印（**背景靜默、無對話框**——Datatype RAW + USB 實體印表機）
+  - **最終版面（4×3cm，驅動內建 `40 mm x 30 mm`）**：`線種+色 [note註記]` / `磅數  Pai store` / `金額  太平永成店` / `取件號 924588  格 N`；note 限5字、格號在取件號右、整版面左移2mm
+  - **`kiosk-print-poller.ps1`（PowerShell，kiosk 無 node 可跑）** 輪詢 `/api/print-jobs?status=pending` → 用 `job.label`(model+color/tension/price/pickupCode/slotNo/note) 自動組 4 行 → 寫暫存 JSON → `powershell print-label.ps1 -ConfigFile` → 開格 → 回報完成；`-Once`＝單步
+  - **kiosk 常駐**：`schtasks` 建「KioskPrintPoller」排程任務（onlogon）跑 `launch-poller.cmd` → 輸出導向 `poller.log`；每 3 秒輪詢、有新單自動印（背景）
   - 店名從環境變數 `STORE`/`STORE_EN` 帶入；`PRINTER` 指定印表機
   - ⚠️ **UTF8 坑**：`Invoke-RestMethod` 抓 API 把中文色「白」誤解成 `ç½` → **必須用 `HttpWebRequest`+`StreamReader(UTF8)`** 解碼
+  - ⚠️ **note 輸入框**：order 頁選填框文字要**白色**（深色底才看得見）
   - 測試：`STORE="太平永成店" STORE_EN="Pai store" powershell -File web/scripts/kiosk-print-poller.ps1 -Once`
 - ⚠️ **這台印表機的坑（實測）**：單字節 FONT 0~8、無內建中文字、**不吃 BITMAP**（最小方塊無反應）→ raw TSPL 印中文**不可行**（TEXT 亂碼、BITMAP 無反應）。**不要走「下載 `.BF2` 字型」**（找不到繁體檔＋印表機未必吃 DOWNLOAD）。
 - ⚠️ **坑**：PowerShell 字串 `"NT$250"` 的 `$2` 會被當變數展開成空 → **用單引號 `'NT$250'`**
