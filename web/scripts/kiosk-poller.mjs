@@ -15,9 +15,9 @@ import { createRequire } from 'module';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
-const sharp = require('sharp');
 
 const BASE = process.env.BASE_URL || 'https://smartlocker-alpha.vercel.app';
 const BRIDGE = process.env.LOCKER_BRIDGE_URL || 'http://localhost:4321';
@@ -25,6 +25,10 @@ const MODE = process.env.LOCKER_MODE || 'bridge';
 const PRINT_MODE = process.env.PRINT_MODE || 'file';
 const ADDR = Number(process.env.LOCKER_ADDR || 1);
 const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 2000);
+// 每店店名（中文＋英文），從環境變數帶入（300 店各設自己的）
+const STORE = process.env.STORE || '太平永成店';
+const STORE_EN = process.env.STORE_EN || 'Pai store';
+const PRINTER_NAME = process.env.PRINTER || 'Gprinter GP-3120TN';
 
 // ── RS-485 幀 ──
 function buildFrame(addr, func, data) {
@@ -51,33 +55,33 @@ async function sendUnlock(slotNo) {
   return true;
 }
 
-// ── 貼紙 ──
-async function generateLabel(job) {
+// ── 標籤列印（中文，Seagull 驅動；呼叫 print-label.ps1）──
+async function printLabel(job) {
   const L = job.label;
-  const colorText = L.color ? ` · ${L.color}` : '';
-  // 4×3 cm 貼紙 @203dpi ≈ 320×240 px；內容：線種＋色、磅數、取件碼（無 QR/格號/金額）
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240">
-  <rect width="320" height="240" fill="#fff"/>
-  <text x="160" y="54" font-family="Arial, sans-serif" font-size="26" font-weight="bold" text-anchor="middle" fill="#000">${L.model}${colorText}</text>
-  <text x="160" y="94" font-family="Arial, sans-serif" font-size="24" text-anchor="middle" fill="#000">${L.tension} lbs</text>
-  <text x="160" y="132" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#777">取件碼</text>
-  <text x="160" y="198" font-family="Arial, sans-serif" font-size="58" font-weight="bold" text-anchor="middle" fill="#000">${L.pickupCode}</text>
-</svg>`;
-  return sharp(Buffer.from(svg)).png().toBuffer();
-}
+  // 從訂單資料自動組出標籤 4 行（線種+色 / 磅數 / 金額 / 取件號）
+  const line1 = L.color ? `${L.model} ${L.color}` : L.model;
+  const line2 = `${L.tension} lbs`;
+  const line3 = `NT$${L.price}`;
+  const line4 = `取件號 ${L.pickupCode}`;
+  const cfg = { store: STORE, storeEn: STORE_EN, line1, line2, line3, line4, printer: PRINTER_NAME };
 
-async function printLabel(pngBuf, job) {
   if (PRINT_MODE === 'file') {
-    const file = path.join(process.cwd(), `label-${job.label.pickupCode}.png`);
-    fs.writeFileSync(file, pngBuf);
-    console.log(`[列印] 已輸出貼紙：${file}`);
+    // 預覽模式：只輸出標籤設定 JSON，方便看訊息（不改動列印）
+    const f = path.join(process.cwd(), `label-${L.pickupCode}.json`);
+    fs.writeFileSync(f, JSON.stringify(cfg, null, 2));
+    console.log(`[列印] 已輸出標籤設定：${f}`);
     return true;
   }
-  const tmp = path.join(os.tmpdir(), `label-${job.label.pickupCode}.png`);
-  fs.writeFileSync(tmp, pngBuf);
+
+  // 寫暫存 config → 呼叫 print-label.ps1（Seagull 驅動＋微軟正黑印中文）
+  const tmp = path.join(os.tmpdir(), `label-${L.pickupCode}.json`);
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2));
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const script = path.join(here, 'print-label.ps1');
   const { execSync } = require('child_process');
   try {
-    execSync(`powershell -Command "Start-Process -FilePath '${tmp}' -Verb Print"`, { stdio: 'ignore' });
+    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${script}" -ConfigFile "${tmp}"`, { stdio: 'ignore' });
+    console.log(`[列印] ✓ 已印 ${L.pickupCode}（${STORE}）`);
     return true;
   } catch (e) {
     console.error('[列印] 失敗:', e.message);
@@ -109,8 +113,7 @@ async function loop() {
       const jobs = await fetchPrintJobs();
       for (const job of jobs) {
         console.log(`[交拍] 單號 ${job.label.orderNo} → 第 ${job.label.slotNo} 格`);
-        const png = await generateLabel(job);
-        if (!(await printLabel(png, job))) continue;
+        if (!(await printLabel(job))) continue;
         if (await sendUnlock(job.label.slotNo)) {
           await markPrintDone(job.id);
           console.log(`[交拍] ✓ 完成（已印＋已開第 ${job.label.slotNo} 格）`);
