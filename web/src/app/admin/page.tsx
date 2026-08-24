@@ -133,6 +133,9 @@ export default function AdminPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: '1.6rem', fontWeight: 700 }}>🧵 穿線訂單後台</h1>
         <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/admin/strings" style={{ padding: '8px 16px', background: '#06C755', color: '#fff', borderRadius: 10, fontSize: 14, textDecoration: 'none' }}>
+            🎾 線種管理
+          </a>
           <a href="/admin/inventory" style={{ padding: '8px 16px', background: '#06C755', color: '#fff', borderRadius: 10, fontSize: 14, textDecoration: 'none' }}>
             📦 販售庫存
           </a>
