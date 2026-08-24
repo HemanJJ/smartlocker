@@ -1,3 +1,5 @@
+import StringMachineIcon from '@/components/StringMachineIcon';
+
 export default function Home() {
   return (
     <div style={{
@@ -11,10 +13,10 @@ export default function Home() {
 
       {/* 第一層：主服務（2×2） */}
       <div style={{ marginTop: 40, display: 'flex', gap: 28, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 640 }}>
-        <BigIcon href="/order" emoji="🧵" label="寄拍穿線" color="#06C755" />
-        <BigIcon href="/store?cat=badminton" emoji="🏸" label="羽球用品" color="#3b82f6" />
-        <BigIcon href="/store?cat=ramen" emoji="🍜" label="泡麵" color="#f59e0b" />
-        <BigIcon href="/pickup" emoji="📦" label="取件" color="#f5b301" />
+        <BigIcon href="/order" icon={<StringMachineIcon />} label="寄拍穿線" color="#06C755" />
+        <BigIcon href="/store?cat=badminton" icon={<Emoji emoji="🏸" />} label="羽球用品" color="#3b82f6" />
+        <BigIcon href="/store?cat=ramen" icon={<Emoji emoji="🍜" />} label="泡麵" color="#f59e0b" />
+        <BigIcon href="/pickup" icon={<Emoji emoji="📦" />} label="取件" color="#ec4899" />
       </div>
 
       {/* 第二層入口＋後台：細字不搶眼 */}
@@ -30,7 +32,12 @@ export default function Home() {
   );
 }
 
-function BigIcon({ href, emoji, label, color, disabled }: { href?: string; emoji: string; label: string; color: string; disabled?: boolean }) {
+/** 給 BigIcon 用的 emoji 包裝（維持原 64px 大小） */
+function Emoji({ emoji }: { emoji: string }) {
+  return <span style={{ fontSize: 64, lineHeight: 1 }}>{emoji}</span>;
+}
+
+function BigIcon({ href, icon, label, color, disabled }: { href?: string; icon: React.ReactNode; label: string; color: string; disabled?: boolean }) {
   const style: React.CSSProperties = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
     width: 180, height: 180, background: disabled ? '#e5e7eb' : color, color: disabled ? '#999' : '#fff',
@@ -38,7 +45,7 @@ function BigIcon({ href, emoji, label, color, disabled }: { href?: string; emoji
   };
   const inner = (
     <>
-      <div style={{ fontSize: 64 }}>{emoji}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 64 }}>{icon}</div>
       <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10 }}>{label}</div>
       {disabled && <div style={{ fontSize: 12, marginTop: 4 }}>即將開放</div>}
     </>
