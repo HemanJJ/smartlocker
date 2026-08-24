@@ -217,7 +217,8 @@ export default function OrderPage() {
   // ── 結果畫面（原版內容不增不減，字級放大） ──
   if (result) {
     return (
-      <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 16px', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
+      <div style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
+        <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 16px' }}>
         <div style={{ textAlign: 'left' }}><a href="/" style={{ display: 'inline-block', marginBottom: 12, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a></div>
         <div style={{ fontSize: 64 }}>✅</div>
         <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: 4 }}>下單完成</h1>
@@ -258,6 +259,7 @@ export default function OrderPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     );
   }
@@ -267,7 +269,8 @@ export default function OrderPage() {
   const stepLabel = '選擇品牌 ｜ 選擇線種 ｜ 選擇磅數 ｜ 確認訂單';
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
+    <div style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
+      <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
         <a href="/" style={{ display: 'inline-block', fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
         <span style={{ marginLeft: 'auto', fontSize: 15, color: '#888' }}>{stepNum}/4</span>
@@ -414,6 +417,7 @@ export default function OrderPage() {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
