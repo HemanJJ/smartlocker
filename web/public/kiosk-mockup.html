@@ -98,7 +98,7 @@
       document.getElementById('lineTitle').textContent='請選擇線種 · '+t;
       document.getElementById('lineGrid').innerHTML=list.map(l=>`<div class="cell" onclick="pickLine(${l.id})"><div class="m">${l.model}</div><div class="s">${l.gauge}</div><div class="p">NT$${l.price}</div></div>`).join('');
     }
-    setLabel({brand:1,s-line:2,s-tension:3,s-confirm:4}[id]); show(id);
+    setLabel({brand:1,'s-line':2,'s-tension':3,'s-confirm':4}[id]); show(id);
   }
   function pickLine(id){const l=LINES.find(x=>x.id===id);if(!l)return;selLine=l;tval=Math.min(24,l.maxTension||30);document.getElementById('tensionTitle').textContent=l.model+' · 請選擇磅數';document.getElementById('tval').textContent=tval;setLabel(3);show('s-tension')}
   function tension(d){const max=selLine?selLine.maxTension||30:30;tval=Math.max(15,Math.min(max,tval+d));document.getElementById('tval').textContent=tval}
