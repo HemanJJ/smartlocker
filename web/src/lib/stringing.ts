@@ -16,6 +16,7 @@ export const STATUS_LABEL: Record<OrderStatus, string> = {
 export interface StringItem {
   id: number;
   model: string;
+  brand: string;
   gauge: string;
   feature: string;
   maxTension: number;
@@ -149,6 +150,7 @@ export function ensureStringingSchema(): Promise<void> {
 
       await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS line_name VARCHAR(255) NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE strings ADD COLUMN IF NOT EXISTS colors VARCHAR(255) NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE strings ADD COLUMN IF NOT EXISTS brand VARCHAR(30) NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS color VARCHAR(40) NOT NULL DEFAULT ''`;
 
       await sql`
@@ -219,6 +221,16 @@ export function ensureStringingSchema(): Promise<void> {
         WHERE model IN ('KIZUNA Z61', 'KIZUNA Z63X', 'KIZUNA Z65X', 'DEARFLY61 螺紋線')
       `;
 
+      // 品牌：從 model 前綴自動推導（之後後台可人工改）
+      await sql`
+        UPDATE strings SET brand = CASE
+          WHEN model LIKE 'AL-%' THEN 'AL'
+          WHEN model LIKE 'YOUNG%' THEN 'YOUNG'
+          WHEN model LIKE 'BG%' THEN 'BG'
+          ELSE SPLIT_PART(model, ' ', 1)
+        END WHERE brand IS NULL OR brand = ''
+      `;
+
       // 種入格口（數量可調，預設 22）
       const slotCount = Math.max(1, Number(process.env.LOCKER_SLOT_COUNT || 22));
       await sql`
@@ -247,6 +259,7 @@ function rowToString(row: any): StringItem {
   return {
     id: Number(row.id),
     model: row.model,
+    brand: row.brand || '',
     gauge: row.gauge,
     feature: row.feature,
     maxTension: Number(row.max_tension),
@@ -289,6 +302,73 @@ export async function listStrings(activeOnly = true): Promise<StringItem[]> {
   return rows.map(rowToString);
 }
 
+/** 從 model 推導品牌（AL-*→AL、YOUNG*→YOUNG、BG*→BG、否則取第一個詞） */
+function splitBrand(model: string): string {
+  const m = model.trim();
+  if (/^AL-/i.test(m)) return 'AL';
+  if (/^YOUNG/i.test(m)) return 'YOUNG';
+  if (/^BG/i.test(m)) return 'BG';
+  if (/^KIZUNA/i.test(m)) return 'KIZUNA';
+  if (/^DEARFLY/i.test(m)) return 'DEARFLY';
+  return m.split(' ')[0] || m;
+}
+
+/** 新增（或已存在則更新）線種。品牌可傳、否則自動推導。 */
+export async function upsertString(input: {
+  model: string;
+  brand?: string;
+  gauge?: string;
+  feature?: string;
+  maxTension?: number;
+  price?: number;
+  colors?: string[];
+}): Promise<StringItem> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const model = input.model.trim();
+  if (!model) throw new Error('型號不能為空');
+  const brand = (input.brand || '').trim() || splitBrand(model);
+  const colors = (input.colors || []).join(',');
+  const maxTension = Math.max(1, Number(input.maxTension || 30));
+  const price = Math.max(0, Number(input.price || 0));
+  const rows = await sql`
+    INSERT INTO strings (model, brand, gauge, feature, max_tension, price, colors)
+    VALUES (${model}, ${brand}, ${input.gauge || ''}, ${input.feature || ''}, ${maxTension}, ${price}, ${colors})
+    ON CONFLICT (model) DO UPDATE SET
+      brand=EXCLUDED.brand, gauge=EXCLUDED.gauge, feature=EXCLUDED.feature,
+      max_tension=EXCLUDED.max_tension, price=EXCLUDED.price, colors=EXCLUDED.colors, is_active=TRUE
+    RETURNING *
+  `;
+  return rowToString(rows[0]);
+}
+
+/** 編輯線種（可部分更新），回傳更新後；不存在回 null。 */
+export async function updateString(id: number, input: Partial<{
+  model: string; brand: string; gauge: string; feature: string; maxTension: number; price: number; colors: string[]; isActive: boolean;
+}>): Promise<StringItem | null> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const cur = (await sql`SELECT * FROM strings WHERE id = ${id}`)[0];
+  if (!cur) return null;
+  const model = (input.model ?? cur.model).trim();
+  const brand = input.brand !== undefined ? input.brand.trim() : (cur.brand || splitBrand(model));
+  const colors = (input.colors ?? ((cur.colors || '').split(',').filter(Boolean))).join(',');
+  const maxTension = input.maxTension !== undefined ? Math.max(1, Number(input.maxTension)) : Number(cur.max_tension);
+  const price = input.price !== undefined ? Math.max(0, Number(input.price)) : Number(cur.price ?? 0);
+  const isActive = input.isActive !== undefined ? input.isActive : Boolean(cur.is_active);
+  const rows = await sql`
+    UPDATE strings SET model=${model}, brand=${brand}, gauge=${input.gauge ?? cur.gauge},
+      feature=${input.feature ?? cur.feature}, max_tension=${maxTension}, price=${price},
+      colors=${colors}, is_active=${isActive}
+    WHERE id=${id} RETURNING *
+  `;
+  return rows[0] ? rowToString(rows[0]) : null;
+}
+
+/** 停用線種（保留歷史訂單，不再在下單列表顯示） */
+export async function disableString(id: number): Promise<boolean> {
+  return (await updateString(id, { isActive: false })) !== null;
+}
 export async function getString(id: number): Promise<StringItem | null> {
   await ensureStringingSchema();
   const sql = getDb();
