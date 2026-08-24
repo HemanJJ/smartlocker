@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiosk 下單 UI 打樣（分層 drill-down · 14"）</title>
+<style>
+  :root{--green:#06C755;--bg:#f4f6f8;--card:#fff;--txt:#222;--sub:#888}
+  *{box-sizing:border-box;margin:0;padding:0;font-family:'Microsoft JhengHei',system-ui,sans-serif}
+  body{background:#111;color:#eee;padding:20px}
+  .frame{max-width:1280px;margin:0 auto;background:var(--bg);border-radius:24px;padding:36px;min-height:90vh;color:var(--txt)}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+  .tip{font-size:15px;color:var(--sub)}
+  h1{font-size:34px;font-weight:800;color:var(--green)}
+  .step{font-size:16px;color:var(--sub);text-align:right;flex:1}
+  h2{font-size:28px;font-weight:800;margin:16px 0 24px}
+  .chips{display:flex;gap:18px;flex-wrap:wrap}
+  .chip{background:#fff;border:2px solid #ddd;border-radius:20px;font-size:26px;font-weight:700;padding:24px 40px;min-width:200px;text-align:center;cursor:pointer}
+  .chip:active{background:var(--green);color:#fff;border-color:var(--green)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .cell{background:#fff;border:2px solid #e5e7eb;border-radius:18px;padding:28px 20px;text-align:center;cursor:pointer;min-height:150px}
+  .cell:active{background:var(--green);color:#fff}
+  .cell .m{font-size:30px;font-weight:800}
+  .cell .s{font-size:19px;color:var(--sub);margin-top:6px}
+  .cell .p{font-size:24px;font-weight:700;color:var(--green);margin-top:12px}
+  .stepper{font-size:140px;font-weight:800;color:var(--green);text-align:center}
+  .stepbtns{display:flex;gap:24px;margin-top:30px}
+  .bigbtn{flex:1;border-radius:20px;font-size:30px;font-weight:800;padding:32px;border:none;cursor:pointer}
+  .btn-grey{background:#eee;color:#666}
+  .btn-green{background:var(--green);color:#fff}
+  .confirm{background:#fff;border-radius:18px;padding:24px;font-size:22px;line-height:1.8;margin-top:16px}
+  .note{font-size:14px;color:var(--sub);margin-top:16px}
+  .screen{display:none}.screen.active{display:block}
+</style>
+</head>
+<body>
+<div class="frame" id="app">
+  <div class="bar"><h1>🏸 羽拍有約</h1><span class="tip">穿線服務</span><span class="step" id="stepLabel"></span></div>
+
+  <!-- ① 選品牌/分類 -->
+  <div class="screen active" id="s-brand">
+    <h2>請選擇線種品牌</h2>
+    <div class="chips">
+      <div class="chip" onclick="go('s-line','AL')">AL 系列</div>
+      <div class="chip" onclick="go('s-line','YOUNG')">YOUNG 系列</div>
+      <div class="chip" onclick="go('s-line','BG')">BG 系列</div>
+      <div class="chip" onclick="go('s-line','ALL')">全部線種</div>
+    </div>
+    <div class="note">分組 drill-down → 每屏一框、大熱區、無 scroll。48+ 線種照樣擴充（加分類）</div>
+  </div>
+
+  <!-- ② 選線種（該品牌 grid） -->
+  <div class="screen" id="s-line">
+    <h2 id="lineTitle">請選擇線種</h2>
+    <div class="grid" id="lineGrid"></div>
+    <div class="stepbtns"><button class="bigbtn btn-grey" onclick="go('s-brand')">← 返回</button></div>
+  </div>
+
+  <!-- ③ 選磅數 stepper -->
+  <div class="screen" id="s-tension">
+    <h2 id="tensionTitle">請選擇磅數</h2>
+    <div class="stepper"><button class="bigbtn btn-grey" style="width:120px;font-size:44px;padding:20px" onclick="tension(-1)">−</button><span id="tval" style="padding:0 40px">24</span><button class="bigbtn btn-grey" style="width:120px;font-size:44px;padding:20px" onclick="tension(1)">+</button></div>
+    <div class="note">上限 = 線種決定（防呆）。可用「+/-」或一排預設檔</div>
+    <div class="stepbtns"><button class="bigbtn btn-grey" onclick="backToLine()">← 上一步</button><button class="bigbtn btn-green" onclick="go('s-confirm')">確認磅數 →</button></div>
+  </div>
+
+  <!-- ④ 確認單卡 -->
+  <div class="screen" id="s-confirm">
+    <h2>請確認訂單</h2>
+    <div class="confirm" id="confirmBox"></div>
+    <div class="stepbtns"><button class="bigbtn btn-grey" onclick="go('s-tension')">← 上一步</button><button class="bigbtn btn-green" onclick="alert('✅ 下單（示範）')">確認下單 · <span id="confirmPrice"></span></button></div>
+  </div>
+</div>
+
+<script>
+  // 真實線種（可擴充到 48+）
+  const LINES=[
+    {id:1,model:"AL-69",gauge:"0.69mm",price:250,brand:"AL"},
+    {id:2,model:"AL-66",gauge:"0.66mm",price:250,brand:"AL"},
+    {id:3,model:"AL-65",gauge:"0.65mm",price:300,brand:"AL"},
+    {id:4,model:"AL-63",gauge:"0.63mm",price:350,brand:"AL"},
+    {id:5,model:"YOUNG66",gauge:"0.66mm",price:250,brand:"YOUNG"},
+    {id:6,model:"YOUNG65",gauge:"0.65mm",price:300,brand:"YOUNG"},
+    {id:7,model:"YOUNG63",gauge:"0.63mm",price:350,brand:"YOUNG"},
+    {id:767,model:"BG65",gauge:"0.70mm",price:250,brand:"BG"},
+    {id:768,model:"BG65-2",gauge:"0.70mm",price:250,brand:"BG"},
+    {id:769,model:"BG65-T-2",gauge:"0.70mm",price:350,brand:"BG"},
+    {id:770,model:"BG80-2",gauge:"0.68mm",price:350,brand:"BG"},
+  ];
+  let selLine=null, tval=24, stepLabel=['選擇品牌','選擇線種','選擇磅數','確認訂單'];
+
+  function setLabel(n){document.getElementById('stepLabel').textContent=`${n}/4 · ${stepLabel[n-1]}`}
+  function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+  function go(id,brand){
+    if(id==='s-line'&&brand){
+      const list=brand==='ALL'?LINES:LINES.filter(l=>l.brand===brand);
+      const t=brand==='ALL'?'全部線種':brand+' 系列';
+      document.getElementById('lineTitle').textContent='請選擇線種 · '+t;
+      document.getElementById('lineGrid').innerHTML=list.map(l=>`<div class="cell" onclick="pickLine(${l.id})"><div class="m">${l.model}</div><div class="s">${l.gauge}</div><div class="p">NT$${l.price}</div></div>`).join('');
+    }
+    setLabel({brand:1,s-line:2,s-tension:3,s-confirm:4}[id]); show(id);
+  }
+  function pickLine(id){const l=LINES.find(x=>x.id===id);if(!l)return;selLine=l;tval=Math.min(24,l.maxTension||30);document.getElementById('tensionTitle').textContent=l.model+' · 請選擇磅數';document.getElementById('tval').textContent=tval;setLabel(3);show('s-tension')}
+  function tension(d){const max=selLine?selLine.maxTension||30:30;tval=Math.max(15,Math.min(max,tval+d));document.getElementById('tval').textContent=tval}
+  function backToLine(){setLabel(2);show('s-line')}
+  function goConfirm(){
+    const l=selLine, box=document.getElementById('confirmBox');
+    box.innerHTML=`<b style="font-size:26px">${l.model}</b>（${l.gauge}）· <b>${tval}</b> lbs · NT$<b style="color:var(--green);font-size:26px">${l.price}</b>`;
+    document.getElementById('confirmPrice').textContent='NT$'+l.price; setLabel(4); show('s-confirm');
+  }
+  // 覆蓋 confirm button 跳轉
+  document.querySelector('#s-confirm .btn-green').onclick=()=>{confirmGo();};
+  function confirmGo(){document.getElementById('confirmBox').innerHTML=document.getElementById('confirmBox').innerHTML;alert('✅ 下單成功（示範：取件碼 924588 · 放進第 5 格）')}
+  document.querySelector('#s-tension .btn-green').onclick=()=>{goConfirm();};
+  setLabel(1);
+</script>
+</body>
+</html>
