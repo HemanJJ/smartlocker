@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiosk 語音 MVP · 羽拍有約</title>
+<style>
+  body{font-family:system-ui,'Microsoft JhengHei',sans-serif;background:#111;color:#eee;padding:24px;max-width:900px;margin:auto}
+  h1{font-size:22px} h2{margin-top:30px;border-bottom:1px solid #333;padding-bottom:6px}
+  .row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #222;flex-wrap:wrap}
+  audio{height:34px} .nm{min-width:210px;font-size:14px} .tag{font-size:12px;padding:2px 8px;border-radius:4px}
+  .t1{background:#275e8c}.t2{background:#2c7d4f}.t3{background:#9a7b2c}.t4{background:#a24949}
+  .txt{font-size:13px;color:#aaa;width:100%}
+  p.note{color:#888;font-size:13px}
+</style>
+</head>
+<body>
+<h1>🎙️ Kiosk 語音 MVP · 羽拍有約（台灣繁中 · 美佳）</h1>
+<p class="note">點播放聽聲音；warn-* 為最高優先（異常插播）。</p>
+
+<h2>① 歡迎 / 行銷（閒置輪播 · 低優先）</h2>
+<div class="row"><span class="nm">welcome-1</span><span class="tag t1">歡迎</span><audio controls src="welcome-1.wav"></audio><span class="txt">歡迎光臨羽拍有約！我們提供專業的羽球拍穿線服務。</span></div>
+<div class="row"><span class="nm">welcome-2</span><span class="tag t1">歡迎</span><audio controls src="welcome-2.wav"></audio><span class="txt">您的球拍值得最好的線材，讓羽拍有約為您服務。</span></div>
+<div class="row"><span class="nm">marketing-1</span><span class="tag t1">行銷</span><audio controls src="marketing-1.wav"></audio><span class="txt">全館穿線服務熱烈進行中，多種頂級線材任您選擇。</span></div>
+<div class="row"><span class="nm">marketing-2</span><span class="tag t1">行銷</span><audio controls src="marketing-2.wav"></audio><span class="txt">現場立即下單，快速穿線，讓您馬上重返球場。</span></div>
+
+<h2>② 引導用語（卡點 · 中優先）</h2>
+<div class="row"><span class="nm">guide-step1</span><span class="tag t2">選線種</span><audio controls src="guide-step1.wav"></audio><span class="txt">請在螢幕上選擇您的線種。</span></div>
+<div class="row"><span class="nm">guide-step2</span><span class="tag t2">選磅數</span><audio controls src="guide-step2.wav"></audio><span class="txt">請選擇您想要的磅數。</span></div>
+<div class="row"><span class="nm">guide-step3</span><span class="tag t2">確認</span><audio controls src="guide-step3.wav"></audio><span class="txt">請確認您的訂單資訊。</span></div>
+<div class="row"><span class="nm">guide-pickup</span><span class="tag t2">取件</span><audio controls src="guide-pickup.wav"></audio><span class="txt">請輸入您的取件號碼。</span></div>
+
+<h2>③ 報幕字（事件 · 中優先）</h2>
+<div class="row"><span class="nm">anon-order</span><span class="tag t3">建單</span><audio controls src="anon-order.wav"></audio><span class="txt">訂單已建立！請將球拍放入開啟的櫃門。</span></div>
+<div class="row"><span class="nm">anon-ready</span><span class="tag t3">完成</span><audio controls src="anon-ready.wav"></audio><span class="txt">您的球拍已穿線完成，請前來取件。</span></div>
+
+<h2>④ 警告用語（異常 · 最高優先）</h2>
+<div class="row"><span class="nm">warn-close</span><span class="tag t4">關門</span><audio controls src="warn-close.wav"></audio><span class="txt">請關好櫃門，謝謝！</span></div>
+<div class="row"><span class="nm">warn-notclosed</span><span class="tag t4">未關</span><audio controls src="warn-notclosed.wav"></audio><span class="txt">櫃門沒有關好，請確認關上。</span></div>
+<div class="row"><span class="nm">warn-anomaly</span><span class="tag t4">異常</span><audio controls src="warn-anomaly.wav"></audio><span class="txt">系統偵測到異常，請洽詢櫃檯人員。</span></div>
+
+<p class="note" style="margin-top:26px">觸發時機/優先級見 <code>mapping.md</code>。語音用 macOS <code>say -v Meijia</code> 生成；可換你錄的真人版。</p>
+</body>
+</html>
