@@ -58,6 +58,21 @@ export default function OrderPage() {
     setStep(1);
   }
 
+  // kiosk 語音（走網頁 <audio>，任何裝置都能播；wav 在 /kiosk-voice/）
+  function playVoice(name: string) {
+    try {
+      const a = new Audio(`/kiosk-voice/${name}.wav`);
+      void a.play().catch(() => {});
+    } catch {}
+  }
+
+  // 引導用語：步驟變動 → 對應語音（選線種/選磅數/確認）
+  useEffect(() => {
+    if (step === 1) playVoice('guide-step1');
+    else if (step === 2) playVoice('guide-step2');
+    else if (step === 3) playVoice('guide-step3');
+  }, [step]);
+
   async function voidOrder(id: number) {
     try {
       await fetch(`/api/orders/${id}/action`, {
@@ -160,6 +175,7 @@ export default function OrderPage() {
       setResult(data.order);
       setWaitSeconds(WAIT_BIND_SECONDS);
       setDoneSeconds(DONE_SECONDS);
+      playVoice('anon-order'); // 報幕：訂單已建立，請將球拍放入開啟的櫃門
     } catch (e: any) {
       setError(e.message);
     } finally {
