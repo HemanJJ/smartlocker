@@ -175,7 +175,7 @@ export default function OrderPage() {
       setResult(data.order);
       setWaitSeconds(WAIT_BIND_SECONDS);
       setDoneSeconds(DONE_SECONDS);
-      playVoice('anon-order'); // 報幕：訂單已建立，請將球拍放入開啟的櫃門
+      playVoice('anon-bind'); // 綁定提醒：訂單已建立，請掃 QR 完成綁定（此時還未配格）
     } catch (e: any) {
       setError(e.message);
     } finally {
