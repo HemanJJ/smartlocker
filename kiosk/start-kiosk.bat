@@ -2,7 +2,7 @@
 REM ============================================================
 REM  start-kiosk.bat  -  Chrome kiosk watchdog loop
 REM
-REM  方案 A：kiosk 畫面住在雲端（smartlocker-alpha.vercel.app），
+REM  方案 A：kiosk 畫面住在雲端（shop.dearfly.com.tw），
 REM  現場機器只是全螢幕 Chrome。SkbBridge 仍在本機管 485 開格。
 REM  Win10 已可裝最新版 Chrome。
 REM
@@ -13,7 +13,7 @@ REM ============================================================
 title Kiosk Watchdog
 cd /d "%~dp0"
 
-set "URL=https://smartlocker-alpha.vercel.app/"
+set "URL=https://shop.dearfly.com.tw/"
 set "PROFILE=%~dp0chrome-profile"
 
 set "CHROME=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"

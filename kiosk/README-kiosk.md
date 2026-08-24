@@ -3,7 +3,7 @@
 從一台乾淨的 Win10 到「插電就自己跑起來、客人碰不出去」的完整步驟。
 照順序做，每一步都有驗收方式。
 
-> 📌 **方案 A（2026-08-21 定案）**：kiosk 畫面**住在雲端**（`smartlocker-alpha.vercel.app`），
+> 📌 **方案 A（2026-08-21 定案）**：kiosk 畫面**住在雲端**（`shop.dearfly.com.tw`），
 > 現場機器只是全螢幕 Chrome；SkbBridge 仍在本機管 485 開格。
 > 舊的本機 `web/index.html` 網頁已成歷史（保留不刪）。
 
@@ -194,7 +194,7 @@ document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
 | 我想… | 怎麼做 |
 |---|---|
-| 改取件碼 | 直接編輯 Google Sheet，最久 60 秒後生效 |
+| 改取件碼 | 雲端訂單自動產生；`sheet.ini` 的 `csv=` 指向 `https://shop.dearfly.com.tw/api/venue/<slug>/codes.csv`，最久 60 秒同步到本機快取 |
 | 立刻套用 Sheet 變更 | 瀏覽器開 `http://localhost:8080/sync` |
 | 看系統狀態 | 瀏覽器開 `http://localhost:8080/health` |
 | 查沒回寫成功的取件記錄 | 打開 `C:\kiosk\pickups.queue` |
@@ -211,8 +211,9 @@ document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
 **取件碼一直說「查無此碼」**
 → 看橋接主控台有沒有 `[同步] Sheet 已更新`。
-   沒有的話：確認 .NET 4.5 有裝、`sheet.ini` 的 `csv=` 網址正確、
-   而且 Sheet 真的「發布到網路」過（不是只有共用連結）。
+   沒有的話：確認 .NET 4.5 有裝、`sheet.ini` 的 `csv=` 網址正確
+   （雲端端點 `https://shop.dearfly.com.tw/api/venue/<slug>/codes.csv`）、
+   且雲端後台該店確實有可用的取件碼。
 
 **開鎖失敗，但按板子 reset 全開正常**
 → reset 按鈕不走 485。用 `SkbProbe.exe COM3 raw` 判斷是

@@ -1,6 +1,6 @@
 # smartlocker — Racket Master 智慧拍櫃
 
-> **Vercel 已上線**：`https://smartlocker-alpha.vercel.app`
+> **Vercel 已上線**：`https://shop.dearfly.com.tw`（原 smartlocker-alpha 已改名）
 > 詳細交接見 `HANDOFF.md` 與 `docs/obsidian-2026-08-18.md`
 
 24 小時無人取件櫃：客人輸入取件碼 → 格口自動開啟 → 關門完成。

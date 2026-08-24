@@ -6,7 +6,7 @@
 //   開格（取件/送回/客人取件）：輪詢 cell_commands → 開第 N 格 → 回報完成
 //
 // 用法（模擬模式）：
-//   BASE_URL=https://smartlocker-alpha.vercel.app LOCKER_BRIDGE_URL=http://localhost:4321 node scripts/kiosk-poller.mjs
+//   BASE_URL=https://shop.dearfly.com.tw LOCKER_BRIDGE_URL=http://localhost:4321 node scripts/kiosk-poller.mjs
 // 單次（測試）：加 ONCE=1
 //
 // 依賴：qrcode、sharp（已在 web/package.json）
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 
 const require = createRequire(import.meta.url);
 
-const BASE = process.env.BASE_URL || 'https://smartlocker-alpha.vercel.app';
+const BASE = process.env.BASE_URL || 'https://shop.dearfly.com.tw';
 const BRIDGE = process.env.LOCKER_BRIDGE_URL || 'http://localhost:4321';
 const MODE = process.env.LOCKER_MODE || 'bridge';
 const PRINT_MODE = process.env.PRINT_MODE || 'file';

@@ -56,6 +56,14 @@
 - DSH 別從 session 內自己 kill（會斷對話）；重啟用 `npx @deepseek-ai/dsh web`
 - DSH 的 `~/.dsh/settings.yaml` 目前 `agent-default-model` = deepseek-v4-pro；`llm-pi-ai.kimi-coding` 指向 OpenRouter（Kimi key 401 失效）
 
+### 5. kiosk 取件碼來源指向雲端（補做 2026-08-24）✅
+- `kiosk/sheet.ini`（＝`win7pack/sheet.ini` 同內容）`csv=` 由 Google Sheet 改為
+  `https://shop.dearfly.com.tw/api/venue/<slug>/codes.csv`（現役 `df-a`＝太平總店；各店只改 slug）
+- 雲端 `codes.csv` 端點＝Google 發布 CSV 格式相容（BOM＋`取件碼,格號,狀態,備註`），
+  SheetSync 用 UTF-8 讀取、本機快取＋離線開格規則不變；0 筆時保留舊快取不覆寫（無碼啟用無害）
+- `kiosk/start-kiosk.bat` kiosk 畫面 URL → `https://shop.dearfly.com.tw/`（domain 改名同步）
+- poller 預設 BASE_URL（kiosk-poller / locker-poller / print-poller .mjs）→ `shop.dearfly.com.tw`
+
 ---
 
 ## 前次交接（2026-08-18）
@@ -125,4 +133,6 @@
 
 ## 下一步
 
-將 kiosk 端 `sheet.ini` 指向 Vercel（各店不同的 slug）
+✅ 已完成（2026-08-24）：kiosk `sheet.ini` 已指向雲端取件碼 CSV（`/api/venue/<slug>/codes.csv`，現役 `df-a`），詳見上方「本期重點 5」。
+
+- 其餘待辦：新店上線（如長壽店）＝後台新增 venue＋kiosk `sheet.ini` 換 slug；羽拍有約 Rich Menu（token 不同）

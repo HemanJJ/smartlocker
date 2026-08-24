@@ -2,14 +2,14 @@
 // 輪詢雲端 cell_commands → 組 RS-485 開鎖幀 → 送給「模擬橋」或「實體鎖控板」→ 回報完成。
 //
 // 用法（模擬模式，接視覺模擬板）：
-//   BASE_URL=https://smartlocker-alpha.vercel.app LOCKER_BRIDGE_URL=http://localhost:4321 node scripts/locker-poller.mjs
+//   BASE_URL=https://shop.dearfly.com.tw LOCKER_BRIDGE_URL=http://localhost:4321 node scripts/locker-poller.mjs
 // 用法（實體模式，接 RS-485 串口；需實作 serial 送出）：
 //   BASE_URL=... LOCKER_MODE=serial LOCKER_SERIAL_PORT=COM3 node scripts/locker-poller.mjs
 // 單次執行（測試用）：加 ONCE=1
 //
 // 協議：UPUS-SKB，幀 = 55 A1 <地址> <功能碼> <長度> <資料> <XOR校驗>；開鎖功能碼 E2。
 
-const BASE = process.env.BASE_URL || 'https://smartlocker-alpha.vercel.app';
+const BASE = process.env.BASE_URL || 'https://shop.dearfly.com.tw';
 const BRIDGE = process.env.LOCKER_BRIDGE_URL || 'http://localhost:4321';
 const MODE = process.env.LOCKER_MODE || 'bridge';
 const ADDR = Number(process.env.LOCKER_ADDR || 1); // 板卡地址（撥碼 +1）

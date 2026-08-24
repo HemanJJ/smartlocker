@@ -2,7 +2,7 @@
 // 輪詢雲端 print_jobs → 產生貼紙 PNG（QR＋文字）→ 列印 → 回報完成。
 //
 // 用法：
-//   BASE_URL=https://smartlocker-alpha.vercel.app PRINT_MODE=file node scripts/print-poller.mjs
+//   BASE_URL=https://shop.dearfly.com.tw PRINT_MODE=file node scripts/print-poller.mjs
 //   （PRINT_MODE=file 會把貼紙存成 label-<取件碼>.png，方便先看版型）
 //   BASE_URL=... PRINT_MODE=windows node scripts/print-poller.mjs
 //   （PRINT_MODE=windows 會呼叫 Windows 驅動列印）
@@ -18,7 +18,7 @@ const require = createRequire(import.meta.url);
 const QRCode = require('qrcode');
 const sharp = require('sharp');
 
-const BASE = process.env.BASE_URL || 'https://smartlocker-alpha.vercel.app';
+const BASE = process.env.BASE_URL || 'https://shop.dearfly.com.tw';
 const PRINT_MODE = process.env.PRINT_MODE || 'file';
 const POLL_INTERVAL = Number(process.env.POLL_INTERVAL || 3000);
 
