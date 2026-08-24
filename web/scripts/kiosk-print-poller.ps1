@@ -1,4 +1,4 @@
-# kiosk-print-poller.ps1 — poll print-jobs → print label (print-label.ps1) → open slot → mark done
+﻿# kiosk-print-poller.ps1 — poll print-jobs → print label (print-label.ps1) → open slot → mark done
 # Runs on the Win10 kiosk (no node needed). Base URL = deployed backend.
 param(
   [string]$Base = "https://shop.dearfly.com.tw",

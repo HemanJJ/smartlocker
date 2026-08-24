@@ -35,3 +35,6 @@ web/.env.production
 
 # 機密文件（勿上版）
 docs/換LINE-token-流程.md
+
+# 標籤列印測試暫存（print-label.ps1 的 -ConfigFile 測試輸入）
+label-*.json
