@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 // Kiosk 版穿線下單：流程/邏輯/欄位與原版完全相同（不增不減）
-// 只把畫面打散成 3 步大卡：① 選線種 → ② 選磅數 → ③ 選填＋下單
+// 畫面改為「品牌分組、一框無滑」drill-down（照 kiosk-mockup 打樣）：
+//   ① 選品牌 → ② 選線種（該品牌 grid）→ ③ 選磅數＋顏色 → ④ 選填＋下單
 // 原版測通過的：LINE 綁定輪詢、60 秒未綁定作廢、綁定後 4 秒自動返回——全部保留。
 
 interface StringItem {
@@ -14,6 +15,7 @@ interface StringItem {
   maxTension: number;
   price: number;
   colors: string[];
+  brand: string;
 }
 
 interface OrderItem {
@@ -30,6 +32,8 @@ interface OrderItem {
   lineName: string;
 }
 
+type Screen = 'brand' | 'line' | 'tension' | 'confirm';
+
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
 const WAIT_BIND_SECONDS = 60; // 會員未綁定 LINE 的等待秒數，逾時作廢訂單並回下單頁
 const DONE_SECONDS = 4;       // 綁定成功後顯示確認的秒數，自動回下單頁
@@ -38,6 +42,8 @@ export default function OrderPage() {
   const [strings, setStrings] = useState<StringItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [screen, setScreen] = useState<Screen>('brand');
+  const [brand, setBrand] = useState('ALL'); // 選中的品牌；'ALL'＝全部
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tension, setTension] = useState(24);
   const [note, setNote] = useState('');
@@ -45,7 +51,6 @@ export default function OrderPage() {
   const [result, setResult] = useState<OrderItem | null>(null);
   const [waitSeconds, setWaitSeconds] = useState(WAIT_BIND_SECONDS);
   const [doneSeconds, setDoneSeconds] = useState(DONE_SECONDS);
-  const [step, setStep] = useState(1); // 1 選線種 / 2 選磅數 / 3 選填＋下單
   const [tensionFocus, setTensionFocus] = useState(false); // 磅數框選中時亮框
   const [color, setColor] = useState(''); // 顏色（''＝不指定）
 
@@ -53,9 +58,11 @@ export default function OrderPage() {
     setResult(null);
     setNote('');
     setColor('');
+    setSelectedId(null);
+    setBrand('ALL');
     setWaitSeconds(WAIT_BIND_SECONDS);
     setDoneSeconds(DONE_SECONDS);
-    setStep(1);
+    setScreen('brand');
   }
 
   // kiosk 語音（走網頁 <audio>，任何裝置都能播；wav 在 /kiosk-voice/）
@@ -66,12 +73,12 @@ export default function OrderPage() {
     } catch {}
   }
 
-  // 引導用語：步驟變動 → 對應語音（選線種/選磅數/確認）
+  // 引導用語：選線種（品牌/線種）→ 選磅數 → 確認下單
   useEffect(() => {
-    if (step === 1) playVoice('guide-step1');
-    else if (step === 2) playVoice('guide-step2');
-    else if (step === 3) playVoice('guide-step3');
-  }, [step]);
+    if (screen === 'brand' || screen === 'line') playVoice('guide-step1');
+    else if (screen === 'tension') playVoice('guide-step2');
+    else if (screen === 'confirm') playVoice('guide-step3');
+  }, [screen]);
 
   // 綁定完成 → 放拍語音（此時已有櫃號）
   const bound = result?.lineUserId;
@@ -158,12 +165,30 @@ export default function OrderPage() {
     [strings, selectedId]
   );
 
+  // 品牌去重（照資料裡的 brand 分組；48+ 線種照樣擴充＝加品牌/分類）
+  const brands = useMemo(() => {
+    const set = new Set<string>();
+    strings.forEach((s) => s.brand && set.add(s.brand));
+    return Array.from(set);
+  }, [strings]);
+
+  // 該品牌（或全部）的線種
+  const brandStrings = useMemo(
+    () => (brand === 'ALL' ? strings : strings.filter((s) => s.brand === brand)),
+    [brand, strings]
+  );
+
+  function pickBrand(b: string) {
+    setBrand(b);
+    setScreen('line');
+  }
+
   function selectString(id: number) {
     setSelectedId(id);
     const s = strings.find((x) => x.id === id);
     if (s) setTension((t) => Math.min(t, s.maxTension));
     setColor(''); // 換線種就清掉顏色（色綁線種）
-    setStep(2);
+    setScreen('tension');
   }
 
   async function submit() {
@@ -237,12 +262,18 @@ export default function OrderPage() {
     );
   }
 
-  // ── 三步流程畫面（內容與原版相同，只打散成大卡） ──
+  // ── 品牌分組、一框無滑 drill-down ──
+  const stepNum = { brand: 1, line: 2, tension: 3, confirm: 4 }[screen];
+  const stepLabel = '選擇品牌 ｜ 選擇線種 ｜ 選擇磅數 ｜ 確認訂單';
+
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '32px 16px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
-      <a href="/" style={{ display: 'inline-block', marginBottom: 12, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
-      <h1 style={{ fontSize: '1.9rem', fontWeight: 700, color: '#06C755' }}>🏸 羽拍穿線下單</h1>
-      <p style={{ color: '#666', marginTop: 4 }}>選線種 → 選磅數 → 下單</p>
+    <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+        <a href="/" style={{ display: 'inline-block', fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
+        <span style={{ marginLeft: 'auto', fontSize: 15, color: '#888' }}>{stepNum}/4</span>
+      </div>
+      <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#06C755' }}>🏸 羽拍穿線下單</h1>
+      <p style={{ color: '#888', marginTop: 2 }}>{stepLabel}</p>
 
       {loading && <p style={{ marginTop: 24, color: '#999' }}>載入線種中…</p>}
 
@@ -259,143 +290,150 @@ export default function OrderPage() {
         <div style={{ marginTop: 24, color: '#999' }}>尚無可用線種。</div>
       )}
 
-      {/* 步驟 1：選線種（原版卡片，放大） */}
-      {!loading && strings.length > 0 && selected && step === 1 && (
+      {!loading && strings.length > 0 && !result && (
         <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>1️⃣ 選擇線種</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {strings.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => selectString(s.id)}
-                style={{
-                  textAlign: 'left',
-                  padding: '20px 18px',
-                  borderRadius: 18,
-                  border: s.id === selected.id ? '3px solid #06C755' : '2px solid #e5e7eb',
-                  background: s.id === selected.id ? '#e8f8ee' : '#fff',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  boxShadow: '0 2px 8px rgba(0,0,0,.05)',
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: 22 }}>{s.model}</div>
-                <div style={{ fontSize: 15, color: '#888' }}>{s.gauge}{s.feature && s.feature !== '—' ? ` · ${s.feature}` : ''}</div>
-                <div style={{ fontSize: 16, color: '#06C755', fontWeight: 700, marginTop: 4 }}>NT${s.price}</div>
-                <div style={{ fontSize: 13, color: '#aaa', marginTop: 2 }}>最高 {s.maxTension} lbs</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* 步驟 2：選磅數（原版 −/＋ 與數字框，放大） */}
-      {!loading && strings.length > 0 && selected && step === 2 && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>2️⃣ 選擇磅數 · {selected.model}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button onClick={() => setTension((t) => Math.max(1, t - 1))} style={{ ...stepperStyle, width: 76, height: 76, fontSize: 36 }}>−</button>
-            {/* 唯讀數字框：kiosk 不跳鍵盤；選中時亮綠框 */}
-            <div
-              onFocus={() => setTensionFocus(true)}
-              onBlur={() => setTensionFocus(false)}
-              tabIndex={0}
-              style={{
-                width: 130, textAlign: 'center', padding: '10px 0', borderRadius: 14,
-                border: `3px solid ${tensionFocus ? '#06C755' : '#ddd'}`,
-                background: tensionFocus ? '#e8f8ee' : '#fff',
-                boxShadow: tensionFocus ? '0 0 0 6px rgba(6,199,85,.15)' : 'none',
-                outline: 'none', cursor: 'pointer', transition: 'border-color .15s, box-shadow .15s',
-              }}
-            >
-              <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1.1 }}>{tension}</div>
-              <div style={{ fontSize: 15, color: '#888' }}>磅</div>
+          {/* ① 選品牌 */}
+          {screen === 'brand' && (
+            <div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請選擇線種品牌</h2>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                <button onClick={() => pickBrand('ALL')} style={{ ...brandChip }}>
+                  全部線種
+                </button>
+                {brands.map((b) => (
+                  <button key={b} onClick={() => pickBrand(b)} style={{ ...brandChip }}>
+                    {b} 系列
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 14, color: '#aaa', marginTop: 18 }}>分組 drill-down → 每屏一框、大熱區、無 scroll。48+ 線種照樣擴充（加品牌/分類）</p>
             </div>
-            <button onClick={() => setTension((t) => Math.min(selected.maxTension, t + 1))} style={{ ...stepperStyle, width: 76, height: 76, fontSize: 36 }}>＋</button>
-            <span style={{ color: '#999', fontSize: 16 }}>上限 {selected.maxTension} lbs</span>
-          </div>
+          )}
 
-          {/* 選顏色（綁線種：只出現這條線有的色） */}
-          <div style={{ marginTop: 24 }}>
-            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>🎨 選擇顏色（可不選）</div>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <button onClick={() => setColor('')} style={{ ...colorChip, background: color === '' ? '#06C755' : '#fff', color: color === '' ? '#fff' : '#333', borderColor: color === '' ? '#06C755' : '#ddd' }}>不指定</button>
-              {selected.colors.map((c) => (
-                <button key={c} onClick={() => setColor(c)} style={{ ...colorChip, background: color === c ? '#06C755' : '#fff', color: color === c ? '#fff' : '#333', borderColor: color === c ? '#06C755' : '#ddd' }}>{c}</button>
-              ))}
+          {/* ② 選線種（該品牌 grid） */}
+          {screen === 'line' && (
+            <div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請選擇線種 · {brand === 'ALL' ? '全部線種' : `${brand} 系列`}</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
+                {brandStrings.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => selectString(s.id)}
+                    style={{
+                      background: '#fff', border: '2px solid #e5e7eb', borderRadius: 18, padding: '22px 14px',
+                      textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ fontSize: 26, fontWeight: 800 }}>{s.model}</div>
+                    <div style={{ fontSize: 17, color: '#888', marginTop: 4 }}>{s.gauge}{s.feature && s.feature !== '—' ? ` · ${s.feature}` : ''}</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: '#06C755', marginTop: 10 }}>NT${s.price}</div>
+                  </button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
+                <button onClick={() => setScreen('brand')} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 返回</button>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
-            <button onClick={() => setStep(1)} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 上一步</button>
-            <button onClick={() => setStep(3)} style={{ ...navBtn, background: '#06C755', color: '#fff' }}>下一步 ▶</button>
-          </div>
-        </div>
-      )}
+          {/* ③ 選磅數＋顏色 */}
+          {screen === 'tension' && selected && (
+            <div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請選擇磅數 · {selected.model}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                <button onClick={() => setTension((t) => Math.max(1, t - 1))} style={{ ...stepperBig }}>−</button>
+                <div
+                  onFocus={() => setTensionFocus(true)}
+                  onBlur={() => setTensionFocus(false)}
+                  tabIndex={0}
+                  style={{
+                    minWidth: 140, textAlign: 'center', padding: '12px 0', borderRadius: 16,
+                    border: `3px solid ${tensionFocus ? '#06C755' : '#ddd'}`,
+                    background: tensionFocus ? '#e8f8ee' : '#fff',
+                    boxShadow: tensionFocus ? '0 0 0 8px rgba(6,199,85,.15)' : 'none',
+                    outline: 'none', cursor: 'pointer', transition: 'border-color .15s, box-shadow .15s',
+                  }}
+                >
+                  <div style={{ fontSize: 64, fontWeight: 900, lineHeight: 1.05 }}>{tension}</div>
+                  <div style={{ fontSize: 18, color: '#888' }}>磅</div>
+                </div>
+                <button onClick={() => setTension((t) => Math.min(selected.maxTension, t + 1))} style={{ ...stepperBig }}>＋</button>
+              </div>
+              <div style={{ textAlign: 'center', color: '#999', fontSize: 16, marginTop: 8 }}>上限 {selected.maxTension} lbs</div>
 
-      {/* 步驟 3：選填＋下單（原版兩個輸入框，不增不減） */}
-      {!loading && strings.length > 0 && selected && step === 3 && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>3️⃣ 選填（可不填）</div>
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="例：拆舊線 / 加厚握把 / 兩支拍（選填）"
-            style={{ width: '100%', padding: 16, border: '2px solid #ddd', borderRadius: 14, fontSize: 20, boxSizing: 'border-box', background: '#1a1a1a', color: '#fff', caretColor: '#fff' }}
-          />
+              {/* 選顏色（綁線種：只出現這條線有的色） */}
+              <h2 style={{ fontSize: 22, fontWeight: 800, margin: '26px 0 14px' }}>🎨 選擇顏色（可不選）</h2>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <button onClick={() => setColor('')} style={{ ...colorChip, background: color === '' ? '#06C755' : '#fff', color: color === '' ? '#fff' : '#333', borderColor: color === '' ? '#06C755' : '#ddd' }}>不指定</button>
+                {selected.colors.map((c) => (
+                  <button key={c} onClick={() => setColor(c)} style={{ ...colorChip, background: color === c ? '#06C755' : '#fff', color: color === c ? '#fff' : '#333', borderColor: color === c ? '#06C755' : '#ddd' }}>{c}</button>
+                ))}
+              </div>
 
-          <div style={{ marginTop: 18, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 16, fontSize: 18 }}>
-            <div>{selected.model}（{selected.gauge}）· <b>{tension}</b> lbs{color ? ` · ${color}` : ''} · NT$<b>{selected.price}</b></div>
-          </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 26 }}>
+                <button onClick={() => setScreen('line')} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 上一步</button>
+                <button onClick={() => setScreen('confirm')} style={{ ...navBtn, background: '#06C755', color: '#fff' }}>確認磅數 ▶</button>
+              </div>
+            </div>
+          )}
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-            <button onClick={() => setStep(2)} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 上一步</button>
-            <button
-              onClick={submit}
-              disabled={submitting || !selected || tension < 1 || tension > selected.maxTension}
-              style={{
-                ...navBtn, flex: 2,
-                background: (submitting || tension < 1 || tension > selected.maxTension) ? '#ccc' : '#06C755',
-                color: '#fff', cursor: (submitting || tension < 1 || tension > selected.maxTension) ? 'default' : 'pointer',
-              }}
-            >
-              {submitting ? '處理中…' : `確認下單 · NT$${selected.price}`}
-            </button>
-          </div>
+          {/* ④ 選填＋確認下單 */}
+          {screen === 'confirm' && selected && (
+            <div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請確認訂單</h2>
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 18, padding: 24, fontSize: 22, lineHeight: 1.9 }}>
+                <div><b style={{ fontSize: 28 }}>{selected.model}</b>（{selected.gauge}）</div>
+                <div><b>{tension}</b> 磅{color ? ` · ${color}` : ''}</div>
+                <div>NT$<b style={{ color: '#06C755', fontSize: 28 }}>{selected.price}</b></div>
+              </div>
+
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: '20px 0 8px' }}>選填（可不填）</h2>
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="例：拆舊線 / 加厚握把 / 兩支拍（選填）"
+                style={{ width: '100%', padding: 16, border: '2px solid #ddd', borderRadius: 14, fontSize: 20, boxSizing: 'border-box', background: '#fff', color: '#333' }}
+              />
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button onClick={() => setScreen('tension')} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 上一步</button>
+                <button
+                  onClick={submit}
+                  disabled={submitting || !selected || tension < 1 || tension > selected.maxTension}
+                  style={{
+                    ...navBtn, flex: 2,
+                    background: (submitting || tension < 1 || tension > selected.maxTension) ? '#ccc' : '#06C755',
+                    color: '#fff', cursor: (submitting || tension < 1 || tension > selected.maxTension) ? 'default' : 'pointer',
+                  }}
+                >
+                  {submitting ? '處理中…' : `確認下單 · NT$${selected.price}`}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-const stepperStyle: React.CSSProperties = {
-  width: 56,
-  height: 56,
-  fontSize: 28,
-  fontWeight: 700,
-  background: '#f0f0f0',
-  border: '2px solid #ddd',
-  borderRadius: 14,
-  cursor: 'pointer',
+const stepperBig: React.CSSProperties = {
+  width: 96, height: 96, fontSize: 44, fontWeight: 800,
+  background: '#f0f0f0', border: '2px solid #ddd', borderRadius: 20, cursor: 'pointer',
+};
+
+const brandChip: React.CSSProperties = {
+  background: '#fff', border: '2px solid #ddd', borderRadius: 20, fontSize: 24, fontWeight: 700,
+  padding: '22px 38px', minWidth: 180, textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit',
 };
 
 const colorChip: React.CSSProperties = {
-  minWidth: 64,
-  padding: '14px 20px',
-  fontSize: 20,
-  fontWeight: 700,
-  border: '2px solid #ddd',
-  borderRadius: 14,
-  cursor: 'pointer',
-  fontFamily: 'inherit',
+  minWidth: 72, padding: '14px 22px', fontSize: 20, fontWeight: 700,
+  border: '2px solid #ddd', borderRadius: 14, cursor: 'pointer', fontFamily: 'inherit',
 };
 
 const navBtn: React.CSSProperties = {
-  flex: 1,
-  padding: '18px 0',
-  fontSize: 20,
-  fontWeight: 700,
-  border: 'none',
-  borderRadius: 14,
-  cursor: 'pointer',
+  flex: 1, padding: '18px 0', fontSize: 20, fontWeight: 700,
+  border: 'none', borderRadius: 14,
 };
