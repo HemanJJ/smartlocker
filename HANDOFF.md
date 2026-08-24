@@ -28,6 +28,8 @@
 - ⚠️ **坑**：PowerShell 字串 `"NT$250"` 的 `$2` 會被當變數展開成空 → **用單引號 `'NT$250'`**
 - ⚠️ **坑**：`StartDocPrinter` 的 P/Invoke 一定要 `CharSet=CharSet.Unicode`（否則 1804 datatype invalid）
 - ⚠️ **300 店擴展**：用同一套 `print-label.ps1`（每店 kiosk 塞店名＋訂單資料），不需 per-store 灌字型（詳見知識庫 doc 16）。
+- ⚠️ **印表開關 `-NoPrint`**：印表機移除時，`launch-poller.cmd` 帶 `-NoPrint` → poller 略過列印（其餘照常）；印表機裝回就拿掉該旗標。
+- 🎙️ **Kiosk 語音系統**（已定稿）：`web/public/kiosk-voice/`（13+1 支、美佳 TTS、`mapping.md`、`index.html` demo）。網頁 `<audio>`（`/kiosk-voice/`）任何裝置可播。**4 層**：歡迎/行銷(閒置)、引導(卡點,guide-step1/2/3)、報幕(anon-bind=下單未綁定提醒、anon-order=綁定完成後放拍)、警告(warn-*,最高優先,待門狀態)。⚠️ Chrome 擋「沒互動前自動播」。
 
 ### 2. 串接服務 Web App — 已部署 shop.dearfly.com.tw ✅
 - 網域：`https://shop.dearfly.com.tw`（原 smartlocker-alpha 已改）
