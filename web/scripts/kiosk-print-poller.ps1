@@ -68,7 +68,7 @@ while ($true) {
         Write-Host "[交拍] 單號 $($L.orderNo) 取件碼 $($L.pickupCode) 格$($L.slotNo)"
         if (-not $NoPrint) { & powershell -NoProfile -ExecutionPolicy Bypass -File $ScriptFile -ConfigFile $tmp }
         Send-Unlock ([int]$L.slotNo)
-        Play-Sound "anon-order"   # 報幕（印完後）：請依櫃號，將球拍放入櫃中
+        # 放拍語音由網頁「綁定完成」時播（避免 kiosk 與網頁重複）
         Invoke-RestMethod -Method POST -Uri "$Base/api/print-jobs/$($job.id)/done" -TimeoutSec 10 | Out-Null
         Write-Host "[交拍] ✓ 完成（$($L.orderNo)，印=$(-not $NoPrint)，開格$($L.slotNo)）"
       }

@@ -73,6 +73,12 @@ export default function OrderPage() {
     else if (step === 3) playVoice('guide-step3');
   }, [step]);
 
+  // 綁定完成 → 放拍語音（此時已有櫃號）
+  const bound = result?.lineUserId;
+  useEffect(() => {
+    if (bound) playVoice('anon-order'); // 請依櫃號，將球拍放入櫃中
+  }, [bound]);
+
   async function voidOrder(id: number) {
     try {
       await fetch(`/api/orders/${id}/action`, {
