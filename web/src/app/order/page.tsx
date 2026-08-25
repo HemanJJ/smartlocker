@@ -35,7 +35,7 @@ interface OrderItem {
 type Screen = 'brand' | 'line' | 'tension' | 'confirm';
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
-const WAIT_BIND_SECONDS = 60; // 會員未綁定 LINE 的等待秒數，逾時作廢訂單並回下單頁
+const WAIT_BIND_SECONDS = 120; // 會員未綁定 LINE 的等待秒數，逾時作廢訂單並回下單頁
 const DONE_SECONDS = 4;       // 綁定成功後顯示確認的秒數，自動回下單頁
 
 export default function OrderPage() {
@@ -53,6 +53,7 @@ export default function OrderPage() {
   const [doneSeconds, setDoneSeconds] = useState(DONE_SECONDS);
   const [tensionFocus, setTensionFocus] = useState(false); // 磅數框選中時亮框
   const [color, setColor] = useState(''); // 顏色（''＝不指定）
+  const [confirmingAbandon, setConfirmingAbandon] = useState(false); // 放棄此單 二次確認
 
   function reset() {
     setResult(null);
@@ -62,6 +63,7 @@ export default function OrderPage() {
     setBrand('ALL');
     setWaitSeconds(WAIT_BIND_SECONDS);
     setDoneSeconds(DONE_SECONDS);
+    setConfirmingAbandon(false);
     setScreen('brand');
   }
 
@@ -94,6 +96,13 @@ export default function OrderPage() {
         body: JSON.stringify({ action: 'void' }),
       });
     } catch {}
+  }
+
+  // 客人放棄這張未綁定的單（下次穿線／重新選線用）→ 作廢＋回主選單
+  async function abandonOrder() {
+    if (!result) return;
+    await voidOrder(result.id);
+    reset();
   }
 
   useEffect(() => {
@@ -261,6 +270,14 @@ export default function OrderPage() {
                 </div>
               </div>
             </div>
+            {confirmingAbandon ? (
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, justifyContent: 'center' }}>
+                <button onClick={() => setConfirmingAbandon(false)} style={{ ...navBtn, flex: 1, background: '#f0f0f0', color: '#666' }}>再想想</button>
+                <button onClick={abandonOrder} style={{ ...navBtn, flex: 1, background: '#e5484d', color: '#fff' }}>確定放棄此單</button>
+              </div>
+            ) : (
+              <button onClick={() => setConfirmingAbandon(true)} style={{ display: 'block', margin: '14px auto 0', padding: '12px 24px', background: 'transparent', border: '2px solid #d9a05b', color: '#b8860b', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>✕ 放棄此單（下次穿線／重選線）</button>
+            )}
           </div>
         )}
         </div>

@@ -185,6 +185,18 @@ export function ensureStringingSchema(): Promise<void> {
         )
       `;
 
+      // 異動 log：作廢/取消的訂單留記錄（不硬刪了事，可事後查）
+      await sql`
+        CREATE TABLE IF NOT EXISTS order_logs (
+          id SERIAL PRIMARY KEY,
+          order_no VARCHAR(30) NOT NULL,
+          pickup_code VARCHAR(6) NOT NULL DEFAULT '',
+          action VARCHAR(20) NOT NULL,
+          reason VARCHAR(100) NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_pickup_code ON orders(pickup_code)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_line_user_id ON orders(line_user_id)`;
@@ -439,6 +451,7 @@ export async function getOrderByPickupCode(code: string): Promise<OrderItem | nu
 
 export async function listOrders(status?: OrderStatus): Promise<OrderItem[]> {
   await ensureStringingSchema();
+  await voidStaleUnboundOrders(); // 逾時未綁定的孤兒單先自動作廢，避免「6格/7單」的錯覺
   const sql = getDb();
   const rows = status
     ? await sql`
@@ -756,28 +769,45 @@ export async function pickupOrder(code: string): Promise<OrderItem> {
   return order;
 }
 
-/** 作廢「尚未綁定」的訂單（kiosk 逾時用）：已綁定或已配格則不動作，避免誤刪。 */
-export async function voidUnboundOrder(id: number): Promise<boolean> {
+/** 作廢「尚未綁定」的訂單（kiosk 逾時 / 客人放棄）：已綁定或已配格則不動作，避免誤刪。刪單＋記異動log。 */
+export async function voidUnboundOrder(id: number, reason = '系統逾時未綁定'): Promise<boolean> {
   await ensureStringingSchema();
   const sql = getDb();
-  const rows = await sql`SELECT id, line_user_id, current_slot FROM orders WHERE id = ${id}`;
+  const rows = await sql`SELECT id, order_no, pickup_code, line_user_id, current_slot FROM orders WHERE id = ${id}`;
   if (rows.length === 0) return false;
   if (rows[0].line_user_id !== '' || rows[0].current_slot != null) {
     return false; // 已綁定或已配格 → 保護，不刪
   }
+  await sql`INSERT INTO order_logs (order_no, pickup_code, action, reason) VALUES (${rows[0].order_no}, ${rows[0].pickup_code || ''}, 'void', ${reason})`;
   const del = await sql`DELETE FROM orders WHERE id = ${id} RETURNING id`;
   return del.length > 0;
 }
 
-/** 取消訂單：釋放格口並刪除訂單（print_jobs 由 CASCADE 刪除） */
-export async function cancelOrder(id: number): Promise<boolean> {
+/** 逾時未綁定的 pending 單自動作廢（作廢＋記log）——由 listOrders 觸發，避免孤兒單卡著。 */
+const STALE_UNBOUND_MINUTES = Number(process.env.STALE_UNBOUND_MINUTES || 10);
+export async function voidStaleUnboundOrders(): Promise<number> {
   await ensureStringingSchema();
   const sql = getDb();
-  const rows = await sql`SELECT id, current_slot FROM orders WHERE id = ${id}`;
+  const rows = await sql`
+    SELECT id FROM orders
+    WHERE status = 'pending' AND line_user_id = '' AND current_slot IS NULL
+      AND created_at < NOW() - (${STALE_UNBOUND_MINUTES} * interval '1 minute')
+  `;
+  let n = 0;
+  for (const r of rows) { if (await voidUnboundOrder(r.id, '逾時未綁定自動作廢')) n++; }
+  return n;
+}
+
+/** 取消訂單：釋放格口、記異動log、刪除訂單（print_jobs 由 CASCADE 刪除） */
+export async function cancelOrder(id: number, reason = '店員取消'): Promise<boolean> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT id, order_no, pickup_code, current_slot FROM orders WHERE id = ${id}`;
   if (rows.length === 0) return false;
   if (rows[0].current_slot != null) {
     await sql`UPDATE locker_slots SET status = 'empty', order_id = NULL WHERE slot_no = ${Number(rows[0].current_slot)}`;
   }
+  await sql`INSERT INTO order_logs (order_no, pickup_code, action, reason) VALUES (${rows[0].order_no}, ${rows[0].pickup_code || ''}, 'cancel', ${reason})`;
   const del = await sql`DELETE FROM orders WHERE id = ${id} RETURNING id`;
   return del.length > 0;
 }
