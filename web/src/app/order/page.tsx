@@ -218,24 +218,25 @@ export default function OrderPage() {
   if (result) {
     return (
       <div style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
-        <div style={{ maxWidth: 520, margin: '0 auto', padding: '32px 16px' }}>
-        <div style={{ textAlign: 'left' }}><a href="/" style={{ display: 'inline-block', marginBottom: 12, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a></div>
-        <div style={{ fontSize: 64 }}>✅</div>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginTop: 4 }}>下單完成</h1>
+        <div style={{ maxWidth: 560, margin: '0 auto', padding: '16px 16px 32px' }}>
+        <div style={{ textAlign: 'left' }}><a href="/" style={{ display: 'inline-block', marginBottom: 8, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a></div>
+        <div style={{ fontSize: 44, lineHeight: 1.1 }}>✅</div>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: 2 }}>下單完成</h1>
 
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 20, padding: 24, marginTop: 20 }}>
-          <div style={{ color: '#999', fontSize: 15 }}>取件碼</div>
-          <div style={{ fontSize: 48, fontWeight: 800, letterSpacing: 8, color: '#06C755' }}>{result.pickupCode}</div>
+        {/* 取件碼＋綁定 QR：一卡並排，矮視窗也能看到 QR */}
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 20, padding: '16px 20px', marginTop: 12 }}>
+          <div style={{ color: '#999', fontSize: 14 }}>取件碼</div>
+          <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: 8, color: '#06C755', lineHeight: 1.2 }}>{result.pickupCode}</div>
           {result.currentSlot != null ? (
-            <div style={{ color: '#999', fontSize: 15, marginTop: 8 }}>放進第 <b style={{ color: '#06C755', fontSize: 20 }}>{result.currentSlot}</b> 格</div>
+            <div style={{ color: '#999', fontSize: 14, marginTop: 4 }}>放進第 <b style={{ color: '#06C755', fontSize: 18 }}>{result.currentSlot}</b> 格</div>
           ) : (
-            <div style={{ color: '#c90', fontSize: 15, marginTop: 8 }}>綁定 LINE 後自動分配格口</div>
+            <div style={{ color: '#c90', fontSize: 14, marginTop: 4 }}>綁定 LINE 後自動分配格口</div>
           )}
-          <div style={{ color: '#999', fontSize: 15, marginTop: 4 }}>{result.stringModel}{result.color ? ` · ${result.color}` : ''} · {result.tension} lbs · NT${result.price}</div>
+          <div style={{ color: '#999', fontSize: 14, marginTop: 2 }}>{result.stringModel}{result.color ? ` · ${result.color}` : ''} · {result.tension} lbs · NT${result.price}</div>
         </div>
 
         {result.lineUserId ? (
-          <div style={{ background: '#e8f8ee', border: '1px solid #bfeccd', borderRadius: 16, padding: 18, marginTop: 16 }}>
+          <div style={{ background: '#e8f8ee', border: '1px solid #bfeccd', borderRadius: 16, padding: 16, marginTop: 12 }}>
             <div style={{ fontWeight: 700, color: '#06C755', fontSize: 17 }}>
               ✅ 已綁定 LINE{result.lineName ? `：${result.lineName}` : ''}
             </div>
@@ -243,19 +244,22 @@ export default function OrderPage() {
             <div style={{ color: '#999', fontSize: 14, marginTop: 6 }}>{doneSeconds} 秒後自動回到下單頁</div>
           </div>
         ) : (
-          <div style={{ background: '#fff7e0', border: '1px solid #f0d48a', borderRadius: 16, padding: 18, marginTop: 16 }}>
-            <div style={{ fontWeight: 700, fontSize: 17 }}>📱 掃 QR 加好友，收電子收據</div>
-            <img
-              src={`/api/qr?text=${encodeURIComponent(`https://line.me/R/ti/p/${LINE_BOT_ID}`)}&w=220`}
-              alt="加好友 QR"
-              style={{ width: 180, height: 180, marginTop: 10, borderRadius: 8, border: '1px solid #ddd', background: '#fff' }}
-            />
-            <div style={{ color: '#777', fontSize: 14, marginTop: 8, lineHeight: 1.7 }}>
-              ① 拿手機掃 QR 打開 LINE 對話
-              <br />② 把上方的 6 位取件碼直接傳過去
-            </div>
-            <div style={{ color: '#c33', fontWeight: 700, fontSize: 15, marginTop: 10 }}>
-              ⏱ {waitSeconds} 秒內未綁定，本單將自動作廢
+          <div style={{ background: '#fff7e0', border: '1px solid #f0d48a', borderRadius: 16, padding: 16, marginTop: 12 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>📱 掃 QR 加好友，收電子收據</div>
+            {/* QR 與說明並排：QR 永遠在視窗內可見 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <img
+                src={`/api/qr?text=${encodeURIComponent(`https://line.me/R/ti/p/${LINE_BOT_ID}`)}&w=220`}
+                alt="加好友 QR"
+                style={{ width: 160, height: 160, borderRadius: 8, border: '1px solid #ddd', background: '#fff', flexShrink: 0 }}
+              />
+              <div style={{ textAlign: 'left', color: '#777', fontSize: 14, lineHeight: 1.7, minWidth: 150 }}>
+                ① 拿手機掃 QR 打開 LINE 對話
+                <br />② 把上方取件碼直接傳過去
+                <div style={{ color: '#c33', fontWeight: 700, marginTop: 6 }}>
+                  ⏱ {waitSeconds} 秒內未綁定，本單作廢
+                </div>
+              </div>
             </div>
           </div>
         )}
