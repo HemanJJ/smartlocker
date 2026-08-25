@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import KioskShell from '@/components/KioskShell';
 
 // Kiosk 版穿線下單：流程/邏輯/欄位與原版完全相同（不增不減）
 // 畫面改為「品牌分組、一框無滑」drill-down（照 kiosk-mockup 打樣）：
@@ -226,6 +227,7 @@ export default function OrderPage() {
   // ── 結果畫面（原版內容不增不減，字級放大） ──
   if (result) {
     return (
+      <KioskShell>
       <div style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
         <div style={{ maxWidth: 560, margin: '0 auto', padding: '16px 16px 32px' }}>
         <div style={{ textAlign: 'left' }}><a href="/" style={{ display: 'inline-block', marginBottom: 8, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a></div>
@@ -282,6 +284,7 @@ export default function OrderPage() {
         )}
         </div>
       </div>
+      </KioskShell>
     );
   }
 
@@ -290,6 +293,7 @@ export default function OrderPage() {
   const stepLabel = '選擇品牌 ｜ 選擇線種 ｜ 選擇磅數 ｜ 確認訂單';
 
   return (
+    <KioskShell>
     <div style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
@@ -440,6 +444,7 @@ export default function OrderPage() {
       )}
       </div>
     </div>
+    </KioskShell>
   );
 }
 

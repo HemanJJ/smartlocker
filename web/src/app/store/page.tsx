@@ -1,5 +1,6 @@
 import { listCatalog, type VendingCategory } from '@/lib/vending';
 import { listVenues } from '@/lib/venues';
+import KioskShell from '@/components/KioskShell';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,7 @@ export default async function StorePage({
   const showCat = cat && cat in CATS ? (cat as VendingCategory) : null;
 
   return (
+    <KioskShell>
     <div style={{ minHeight: '100vh', background: '#f5f5f5', color: '#333', fontFamily: '-apple-system, "PingFang TC", sans-serif', display: 'flex', flexDirection: 'column' }}>
       {/* 頂部：主選單＋狀態 */}
       <div style={{ maxWidth: 800, margin: '0 auto', width: '100%', padding: '14px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
@@ -90,5 +92,6 @@ export default async function StorePage({
         </div>
       )}
     </div>
+    </KioskShell>
   );
 }

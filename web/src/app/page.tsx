@@ -1,7 +1,9 @@
 import StringMachineIcon from '@/components/StringMachineIcon';
+import KioskShell from '@/components/KioskShell';
 
 export default function Home() {
   return (
+    <KioskShell>
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       minHeight: '100vh', fontFamily: '-apple-system, sans-serif', background: '#f5f5f5', color: '#333'
@@ -29,6 +31,7 @@ export default function Home() {
         <a href="/admin" style={{ color: '#bbb', textDecoration: 'none' }}>員工後台</a>
       </p>
     </div>
+    </KioskShell>
   );
 }
 

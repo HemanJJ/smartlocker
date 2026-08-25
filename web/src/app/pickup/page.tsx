@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import KioskShell from '@/components/KioskShell';
 
 interface OrderItem {
   id: number;
@@ -76,6 +77,7 @@ export default function PickupPage() {
   // ── 成功畫面 ──
   if (status === 'ok' && result) {
     return (
+      <KioskShell>
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '40px 16px', fontFamily: '-apple-system, sans-serif', color: '#333', textAlign: 'center' }}>
         <div style={{ textAlign: 'left' }}><a href="/" style={{ display: 'inline-block', marginBottom: 14, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a></div>
         <div style={{ fontSize: 64 }}>🔓</div>
@@ -93,11 +95,13 @@ export default function PickupPage() {
           下一筆
         </button>
       </div>
+      </KioskShell>
     );
   }
 
   // ── 輸入畫面 ──
   return (
+    <KioskShell>
     <div style={{ maxWidth: 460, margin: '0 auto', padding: '32px 16px 48px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
       <a href="/" style={{ display: 'inline-block', marginBottom: 14, fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
       <h1 style={{ fontSize: '1.7rem', fontWeight: 700, color: '#06C755', textAlign: 'center' }}>📦 取件</h1>
@@ -147,6 +151,7 @@ export default function PickupPage() {
         尚未付款或球拍未送回，會顯示提示訊息。
       </p>
     </div>
+    </KioskShell>
   );
 }
 
