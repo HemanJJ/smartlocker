@@ -290,18 +290,16 @@ export default function OrderPage() {
 
   // ── 品牌分組、一框無滑 drill-down ──
   const stepNum = { brand: 1, line: 2, tension: 3, confirm: 4 }[screen];
-  const stepLabel = '選擇品牌 ｜ 選擇線種 ｜ 選擇磅數 ｜ 確認訂單';
 
   return (
     <KioskShell>
     <div style={{ minHeight: '100vh', background: '#f4f6f8', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '24px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <a href="/" style={{ display: 'inline-block', fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
-        <span style={{ marginLeft: 'auto', fontSize: 15, color: '#888' }}>{stepNum}/4</span>
       </div>
       <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#06C755' }}>🏸 羽拍穿線下單</h1>
-      <p style={{ color: '#888', marginTop: 2 }}>{stepLabel}</p>
+      <StepTracker step={stepNum} />
 
       {loading && <p style={{ marginTop: 24, color: '#999' }}>載入線種中…</p>}
 
@@ -467,3 +465,45 @@ const navBtn: React.CSSProperties = {
   flex: 1, padding: '18px 0', fontSize: 20, fontWeight: 700,
   border: 'none', borderRadius: 14,
 };
+
+// 物流式步驟進度條：4 階段，已完成打勾、當前亮綠、後段灰
+const STEPS = [
+  { icon: '🏸', label: '選品牌' },
+  { icon: '🧵', label: '選線種' },
+  { icon: '⚖️', label: '選磅數' },
+  { icon: '✅', label: '確認' },
+];
+
+function StepTracker({ step }: { step: number }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', margin: '14px 0 4px' }}>
+      {STEPS.map((s, i) => {
+        const n = i + 1;
+        const done = step > n;
+        const active = step === n;
+        const bg = active ? '#06C755' : done ? '#e8f8ee' : '#fff';
+        const border = done || active ? '#06C755' : '#d1d5db';
+        const fg = active ? '#fff' : done ? '#06C755' : '#9ca3af';
+        return (
+          <div key={n} style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {/* 連線（左側，除第一段） */}
+            {i > 0 && (
+              <div style={{ width: 26, height: 3, borderRadius: 2, background: step > i ? '#06C755' : '#d1d5db', marginTop: 22 }} />
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 60 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: bg, border: `2px solid ${border}`, fontSize: 21, lineHeight: 1, fontWeight: 700,
+              }}>
+                {done ? '✓' : s.icon}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: active ? 800 : 500, color: done || active ? '#06C755' : '#9ca3af', marginTop: 5 }}>
+                {s.label}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
