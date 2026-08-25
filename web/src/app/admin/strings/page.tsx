@@ -27,6 +27,7 @@ export default function AdminStrings() {
       model: form.model.trim(), brand: form.brand.trim(), gauge: form.gauge.trim(),
       feature: form.feature.trim(), maxTension: Number(form.maxTension), price: Number(form.price),
       colors: form.colors,
+      isActive: form.isActive, // 編輯時可切在售/停售；新增預設在售
     };
     const url = form.id ? `/api/admin/strings/${form.id}` : '/api/admin/strings';
     const method = form.id ? 'PUT' : 'POST';
@@ -36,6 +37,10 @@ export default function AdminStrings() {
   }
   async function disable(id: number) {
     await fetch(`/api/admin/strings/${id}`, { method: 'DELETE' });
+    load();
+  }
+  async function enable(id: number) {
+    await fetch(`/api/admin/strings/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive: true }) });
     load();
   }
   function edit(s: S) { setForm(s); setMsg(''); window.scrollTo(0, 0); }
@@ -55,6 +60,14 @@ export default function AdminStrings() {
           <label>磅數上限<input style={inp} type="number" value={form.maxTension} onChange={(e) => up('maxTension', e.target.value)} /></label>
           <label>價格<input style={inp} type="number" value={form.price} onChange={(e) => up('price', e.target.value)} /></label>
           <label style={{ gridColumn: 'span 2' }}>顏色(逗號分隔)<input style={inp} value={form.colors.join(',')} onChange={(e) => up('colors', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))} placeholder="白,黃,黑,藍,紅" /></label>
+          {form.id > 0 && (
+            <label style={{ gridColumn: 'span 2' }}>狀態
+              <select style={inp} value={form.isActive ? '1' : '0'} onChange={(e) => up('isActive', e.target.value === '1')}>
+                <option value="1">在售（上架，客人可選）</option>
+                <option value="0">停售（下架，客人看不到）</option>
+              </select>
+            </label>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
           <button style={btn}>儲存</button>
@@ -77,7 +90,9 @@ export default function AdminStrings() {
               <td style={td}>{s.isActive ? '在售' : '停用'}</td>
               <td style={td}>
                 <button style={btnSmall} onClick={() => edit(s)}>編輯</button>{' '}
-                {s.isActive && <button style={btnSmallDanger} onClick={() => disable(s.id)}>停用</button>}
+                {s.isActive
+                  ? <button style={btnSmallDanger} onClick={() => disable(s.id)}>停用</button>
+                  : <button style={btnSmall} onClick={() => enable(s.id)}>上架</button>}
               </td>
             </tr>
           ))}

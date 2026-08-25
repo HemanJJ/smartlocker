@@ -20,6 +20,8 @@
   .cell.locked { background:#0f2418; border-color:#06C755; color:#06C755; }
   .cell.unlocked { background:#241f0f; border-color:#f5b301; color:#f5b301; }
   .cell.open { background:#2a1214; border-color:#e5484d; color:#e5484d; }
+  .cell.occupied { border-color:#8b5cf6; box-shadow:0 0 0 2px #8b5cf6 inset; }
+  .cell .occ { font-size:11px; margin-top:2px; color:#8b5cf6; font-weight:700; }
   .cell.locked .st::after { content:"鎖住"; }
   .cell.unlocked .st::after { content:"已解鎖"; }
   .cell.open .st::after { content:"門開"; }
@@ -30,8 +32,8 @@
 <header>
   <h1>🗄️ 格口模擬板 · 羽拍有約（22 格）</h1>
   <span class="hint" id="conn">連線中…</span>
-  <a href="https://smartlocker-alpha.vercel.app/order" target="_blank" style="padding:8px 12px;background:#06C755;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">🧵 kiosk 下單</a>
-  <a href="https://smartlocker-alpha.vercel.app/admin" target="_blank" style="padding:8px 12px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">👤 後台</a>
+  <a href="https://shop.dearfly.com.tw/order" target="_blank" style="padding:8px 12px;background:#06C755;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">🧵 kiosk 下單</a>
+  <a href="https://shop.dearfly.com.tw/admin" target="_blank" style="padding:8px 12px;background:#3b82f6;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">👤 後台</a>
   <button onclick="resetAll()" style="padding:8px 14px;background:#e5484d;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">🔄 重置全部</button>
 </header>
 
@@ -39,6 +41,7 @@
   <span><i class="dot" style="background:#06C755"></i>鎖住（門關）</span>
   <span><i class="dot" style="background:#f5b301"></i>已解鎖</span>
   <span><i class="dot" style="background:#e5484d"></i>門開</span>
+  <span><i class="dot" style="background:#8b5cf6"></i>被訂單佔用</span>
   <span style="color:#888">— 點擊格口可切換 開門/關門（模擬門磁）</span>
 </div>
 
@@ -59,6 +62,8 @@
 const GRID = document.getElementById('grid');
 const CONN = document.getElementById('conn');
 const FRAMELOG = document.getElementById('framelog');
+let OCCUPIED = new Set();   // DB 中「被訂單佔用」的格號
+let lastCells = [];         // 最近一次 /state 的 cells
 
 async function fetchState() {
   try {
@@ -66,6 +71,7 @@ async function fetchState() {
     const j = await r.json();
     CONN.textContent = '已連線 · ' + j.cellCount + ' 格';
     CONN.style.color = '#06C755';
+    lastCells = j.cells;
     render(j.cells);
   } catch {
     CONN.textContent = '斷線';
@@ -73,13 +79,24 @@ async function fetchState() {
   }
 }
 
+// 讀 DB 佔用（模擬器 /occupied 轉發 shop /api/slots），標示哪些格被訂單佔用
+async function fetchOccupied() {
+  try {
+    const r = await fetch('/occupied');
+    const j = await r.json();
+    OCCUPIED = new Set((j.occupied || []).map(Number));
+    if (lastCells.length) render(lastCells);
+  } catch {}
+}
+
 function render(cells) {
   GRID.innerHTML = '';
   for (const c of cells) {
-    const cls = c.door === 'open' ? 'open' : (c.power === 'on' ? 'unlocked' : 'locked');
+    const isOcc = OCCUPIED.has(c.no);
+    const cls = c.door === 'open' ? 'open' : (c.power === 'on' ? 'unlocked' : 'locked') + (isOcc ? ' occupied' : '');
     const div = document.createElement('div');
     div.className = 'cell ' + cls;
-    div.innerHTML = '<div class="no">' + c.no + '</div><div class="st"></div>';
+    div.innerHTML = '<div class="no">' + c.no + '</div><div class="st"></div>' + (isOcc ? '<div class="occ">已佔用</div>' : '');
     div.onclick = () => toggle(c.no, c.door);
     GRID.appendChild(div);
   }
@@ -96,6 +113,7 @@ async function fetchFrameLog() {
 async function resetAll() {
   await fetch('/reset', { method: 'POST' });
   fetchState();
+  fetchOccupied();
   fetchFrameLog();
 }
 
@@ -133,8 +151,10 @@ function quickOpen(no) {
 }
 
 fetchState();
+fetchOccupied();
 fetchFrameLog();
 setInterval(fetchState, 500);
+setInterval(fetchOccupied, 2500);
 setInterval(fetchFrameLog, 1000);
 </script>
 </body>

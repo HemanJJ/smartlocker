@@ -16,6 +16,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 4321);
 const CELL_COUNT = 22;
+// 讀 DB 佔用（看板顯示哪些格被訂單佔用）。可用 SHOP_BASE_URL 覆寫。
+const SHOP = process.env.SHOP_BASE_URL || 'https://shop.dearfly.com.tw';
 
 // 每格狀態：door: 'closed'(門關/接通) | 'open'(門開/斷開)；power: 'off'(鎖住) | 'on'(解鎖)
 const cells = Array.from({ length: CELL_COUNT + 1 }, (_, i) => ({
@@ -131,6 +133,19 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/state' && req.method === 'GET') {
     send(200, { cellCount: CELL_COUNT, cells: cells.slice(1) });
+    return;
+  }
+
+  // 看板顯示 DB 佔用：proxy 到 shop /api/slots，回傳被訂單佔用的格號
+  if (url.pathname === '/occupied' && req.method === 'GET') {
+    try {
+      const r = await fetch(`${SHOP}/api/slots`);
+      const j = await r.json();
+      const occupied = (j && j.slots ? j.slots : []).filter((s) => s && s.status === 'occupied').map((s) => Number(s.slotNo));
+      send(200, { occupied });
+    } catch (e) {
+      send(200, { occupied: [], error: String((e && e.message) || e) });
+    }
     return;
   }
 
