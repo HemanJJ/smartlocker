@@ -53,7 +53,7 @@ export default function AdminStrings() {
   function edit(s: S) { setForm(s); setMsg(''); window.scrollTo(0, 0); }
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 24, fontFamily: 'system-ui' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5', maxWidth: 900, margin: '0 auto', padding: 24, fontFamily: 'system-ui', color: '#333' }}>
       <a href="/admin" style={{ display: 'inline-block', marginBottom: 10, fontSize: 16, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>← 回後台</a>
       <h1 style={{ fontSize: 26 }}>線種管理（店長自己加線種）</h1>
       <p style={{ color: '#888' }}>新增/編輯線種，品牌留空會依型號自動推導（AL-/YOUNG/BG…）。48+ 線種就是多加幾筆。</p>

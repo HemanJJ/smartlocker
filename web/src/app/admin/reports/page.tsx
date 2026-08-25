@@ -40,7 +40,7 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 16px 64px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
+    <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px 16px 64px', fontFamily: '-apple-system, sans-serif', color: '#333', background: '#f5f5f5' }}>
       <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#06C755' }}>📊 進銷存報表</h1>
       <div style={{ marginTop: 10 }}>
         <VenueSwitcher onVenueChange={(v) => { setVenueId(v); load(v); }} />

@@ -51,7 +51,7 @@ export default function AdminSuppliersPage() {
   }
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px 64px', fontFamily: '-apple-system, sans-serif', color: '#333' }}>
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px 64px', fontFamily: '-apple-system, sans-serif', color: '#333', background: '#f5f5f5' }}>
       <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#06C755' }}>🚚 供應商</h1>
       <AdminNav current="suppliers" />
       {msg && <p style={{ marginTop: 10, fontSize: 14 }}>{msg}</p>}
