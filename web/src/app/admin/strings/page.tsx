@@ -12,8 +12,15 @@ export default function AdminStrings() {
   const [msg, setMsg] = useState('');
 
   async function load() {
-    const r = await fetch('/api/admin/strings?include_disabled=1').then((x) => x.json());
-    if (r.ok) setRows(r.strings);
+    try {
+      const r = await fetch('/api/admin/strings?include_disabled=1');
+      const j = await r.json().catch(() => null);
+      if (r.status === 401) { window.location.href = '/admin/login'; return; }
+      if (j && j.ok) setRows(j.strings || []);
+      else setMsg('❌ 載入失敗：' + ((j && j.error) || ('HTTP ' + r.status)));
+    } catch (e: any) {
+      setMsg('❌ 載入異常：' + (e?.message || e));
+    }
   }
   useEffect(() => { load(); }, []);
 
@@ -79,6 +86,9 @@ export default function AdminStrings() {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 20, fontSize: 15 }}>
         <thead><tr>{['型號', '品牌', '線徑', '磅數上限', '價格', '顏色', '狀態', '操作'].map((h) => <th key={h} style={th}>{h}</th>)}</tr></thead>
         <tbody>
+          {rows.length === 0 && (
+            <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: '#999' }}>尚無線種資料（若載入失敗，見上方提示）</td></tr>
+          )}
           {rows.map((s) => (
             <tr key={s.id} style={{ background: s.isActive ? '#fff' : '#f0f0f0', color: s.isActive ? '#222' : '#999' }}>
               <td style={td}>{s.model}</td>
