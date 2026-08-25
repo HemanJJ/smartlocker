@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 export default function AdminNav({ current }: { current?: string }) {
   const items: [string, string, string][] = [
+    ['/', '🏠 首頁', 'home'],
     ['/admin', '🧵 穿線', 'orders'],
     ['/admin/inventory', '📦 庫存', 'inventory'],
     ['/admin/transfers', '📤 配貨', 'transfers'],
