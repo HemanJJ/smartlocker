@@ -334,6 +334,7 @@ export async function upsertString(input: {
   maxTension?: number;
   price?: number;
   colors?: string[];
+  isActive?: boolean;
 }): Promise<StringItem> {
   await ensureStringingSchema();
   const sql = getDb();
@@ -343,12 +344,13 @@ export async function upsertString(input: {
   const colors = (input.colors || []).join(',');
   const maxTension = Math.max(1, Number(input.maxTension || 30));
   const price = Math.max(0, Number(input.price || 0));
+  const isActive = input.isActive !== undefined ? input.isActive : true;
   const rows = await sql`
-    INSERT INTO strings (model, brand, gauge, feature, max_tension, price, colors)
-    VALUES (${model}, ${brand}, ${input.gauge || ''}, ${input.feature || ''}, ${maxTension}, ${price}, ${colors})
+    INSERT INTO strings (model, brand, gauge, feature, max_tension, price, colors, is_active)
+    VALUES (${model}, ${brand}, ${input.gauge || ''}, ${input.feature || ''}, ${maxTension}, ${price}, ${colors}, ${isActive})
     ON CONFLICT (model) DO UPDATE SET
       brand=EXCLUDED.brand, gauge=EXCLUDED.gauge, feature=EXCLUDED.feature,
-      max_tension=EXCLUDED.max_tension, price=EXCLUDED.price, colors=EXCLUDED.colors, is_active=TRUE
+      max_tension=EXCLUDED.max_tension, price=EXCLUDED.price, colors=EXCLUDED.colors, is_active=EXCLUDED.is_active
     RETURNING *
   `;
   return rowToString(rows[0]);

@@ -68,14 +68,12 @@ export default function AdminStrings() {
           <label>磅數上限<input style={inp} type="number" value={form.maxTension} onChange={(e) => up('maxTension', e.target.value)} /></label>
           <label>價格<input style={inp} type="number" value={form.price} onChange={(e) => up('price', e.target.value)} /></label>
           <label style={{ gridColumn: 'span 2' }}>顏色(逗號分隔)<input style={inp} value={form.colors.join(',')} onChange={(e) => up('colors', e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))} placeholder="白,黃,黑,藍,紅" /></label>
-          {form.id > 0 && (
-            <label style={{ gridColumn: 'span 2' }}>狀態
-              <select style={inp} value={form.isActive ? '1' : '0'} onChange={(e) => up('isActive', e.target.value === '1')}>
-                <option value="1">在售（上架，客人可選）</option>
-                <option value="0">停售（下架，客人看不到）</option>
-              </select>
-            </label>
-          )}
+          <label style={{ gridColumn: 'span 2' }}>狀態
+            <select style={inp} value={form.isActive ? '1' : '0'} onChange={(e) => up('isActive', e.target.value === '1')}>
+              <option value="1">在售（上架，客人可選）</option>
+              <option value="0">停售（下架，客人看不到）</option>
+            </select>
+          </label>
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
           <button style={btn}>儲存</button>
