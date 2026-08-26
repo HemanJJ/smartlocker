@@ -64,6 +64,9 @@ export function ensureVendingSchema(): Promise<void> {
       // 進銷存地基：成本價（毛利 = price − cost_price）
       await sql`ALTER TABLE inventory ADD COLUMN IF NOT EXISTS cost_price INTEGER NOT NULL DEFAULT 0`;
 
+      // 安全存量（低於此值 LINE 提醒補貨；進銷存也用）
+      await sql`ALTER TABLE inventory ADD COLUMN IF NOT EXISTS min_qty INTEGER NOT NULL DEFAULT 0`;
+
       // 多店：唯一鍵從 (sku) 改為 (venue_id, sku)，各分店各自有貨
       await sql`
         DO $$ BEGIN
@@ -133,7 +136,7 @@ async function seedVendingCatalogIfEmpty() {
     await sql`
       INSERT INTO inventory (sku, name, category, price, qty, cabinet_id, slot_no)
       VALUES (${sku}, ${name}, ${category}, ${price}, ${qty}, 'df-f', 0)
-      ON CONFLICT (sku) DO NOTHING
+      ON CONFLICT (venue_id, sku) DO NOTHING
     `;
   }
 }
