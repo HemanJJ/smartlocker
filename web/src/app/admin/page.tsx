@@ -153,7 +153,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '建立失敗');
       setShowManual(false);
-      setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0 });
+      setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
       await refresh();
     } catch (e: any) {
       setError(e.message);
