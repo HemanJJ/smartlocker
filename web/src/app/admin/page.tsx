@@ -44,7 +44,7 @@ export default function AdminPage() {
   const [strings, setStrings] = useState<{ id: number; model: string; maxTension: number; colors: string[] }[]>([]);
   const [emptySlots, setEmptySlots] = useState<number[]>([]);
   const [showManual, setShowManual] = useState(false);
-  const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0 });
+  const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
   const [saving, setSaving] = useState(false);
 
   async function logout() {
@@ -147,7 +147,7 @@ export default function AdminPage() {
           color: manual.color,
           note: manual.note,
           slotNo: manual.slotNo,
-          customerName: '',
+          customerName: (manual.name + (manual.contact ? ` · ${manual.contact}` : '')).trim(),
         }),
       });
       const data = await res.json();
@@ -219,6 +219,8 @@ export default function AdminPage() {
               {strings.map((s) => <option key={s.id} value={s.id}>{s.model}</option>)}
             </select>
             <input type="number" value={manual.tension} onChange={(e) => setManual({ ...manual, tension: Number(e.target.value) })} style={{ ...inp, width: 70 }} title="磅數" />
+            <input placeholder="名字" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} style={{ ...inp, width: 110 }} />
+            <input placeholder="會員ID／電話" value={manual.contact} onChange={(e) => setManual({ ...manual, contact: e.target.value })} style={{ ...inp, width: 140 }} />
             <input placeholder="備註（鞋／包裹／臨時寄放…）" value={manual.note} onChange={(e) => setManual({ ...manual, note: e.target.value })} style={{ ...inp, width: 210 }} />
             <select value={manual.slotNo} onChange={(e) => setManual({ ...manual, slotNo: Number(e.target.value) })} style={inp}>
               <option value={0}>自選格子</option>
