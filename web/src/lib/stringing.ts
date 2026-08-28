@@ -418,6 +418,18 @@ async function occupyEmptySlot(orderId: number | null = null): Promise<number> {
   return Number(updated[0].slot_no);
 }
 
+/** 人工單：佔用「指定」格口（先驗證該格空）。回傳格號，失敗丟錯。 */
+async function occupySpecificSlot(slotNo: number, orderId: number): Promise<number> {
+  const sql = getDb();
+  const updated = await sql`
+    UPDATE locker_slots SET status = 'occupied', order_id = ${orderId}, updated_at = NOW()
+    WHERE slot_no = ${slotNo} AND status = 'empty'
+    RETURNING slot_no
+  `;
+  if (updated.length === 0) throw new Error(`格口 ${slotNo} 已佔用或不存在，請改選其他格`);
+  return Number(updated[0].slot_no);
+}
+
 async function releaseSlot(slotNo: number | null): Promise<void> {
   if (slotNo == null) return;
   const sql = getDb();
@@ -504,6 +516,7 @@ export async function createOrder(input: {
   lineUserId?: string;
   customerName?: string;
   note?: string;
+  slotNo?: number; // 人工單：指定格口（提供就佔該格＋印貼紙）
 }): Promise<OrderItem> {
   await ensureStringingSchema();
   const sql = getDb();
@@ -542,15 +555,37 @@ export async function createOrder(input: {
   }
   if (!orderNo) throw new Error('單號產生失敗');
 
-  // 只建單，不配格、不印貼紙。會員綁定 LINE 後（finalizeAfterBind）才佔格＋印＋通知。
+  // 人工單：有指定格口就先驗證該格是空的
+  const manualSlot = input.slotNo != null ? Number(input.slotNo) : null;
+  if (manualSlot != null) {
+    const chk = await sql`SELECT status FROM locker_slots WHERE slot_no = ${manualSlot}`;
+    if (chk.length === 0) throw new Error(`格口 ${manualSlot} 不存在`);
+    if (chk[0].status !== 'empty') throw new Error(`格口 ${manualSlot} 已佔用`);
+  }
+
+  // kiosk 下單：只建單不配格（綁定 LINE 後才佔格）。人工單：直接佔指定格＋印貼紙。
   const inserted = await sql`
     INSERT INTO orders (order_no, string_id, color, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
     VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, 'pending', FALSE,
-            ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, NULL)
+            ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, ${manualSlot})
     RETURNING *
   `;
 
-  return rowToOrder(inserted[0], stringItem.model);
+  const order = rowToOrder(inserted[0], stringItem.model);
+
+  if (manualSlot != null) {
+    await occupySpecificSlot(manualSlot, order.id);
+    const labelData = JSON.stringify({
+      orderNo: order.orderNo, pickupCode: order.pickupCode, model: order.stringModel,
+      color: order.color, tension: order.tension, price: order.price, slotNo: manualSlot, note: order.note || '',
+    });
+    await sql`INSERT INTO print_jobs (order_id, label_data) VALUES (${order.id}, ${labelData})`;
+    const updated = await getOrderById(order.id);
+    if (updated) await notifyStaffNewOrder(updated);
+    return updated ?? order;
+  }
+
+  return order;
 }
 
 // ── 列印佇列（kiosk 輪詢印貼紙）────────────────────────────────────────

@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       lineUserId: body.lineUserId || '',
       customerName: body.customerName || '',
       note: body.note || '',
+      slotNo: body.slotNo != null ? Number(body.slotNo) : undefined,
     });
     return NextResponse.json({ ok: true, order });
   } catch (err: any) {

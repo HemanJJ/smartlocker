@@ -41,6 +41,11 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [strings, setStrings] = useState<{ id: number; model: string; maxTension: number; colors: string[] }[]>([]);
+  const [emptySlots, setEmptySlots] = useState<number[]>([]);
+  const [showManual, setShowManual] = useState(false);
+  const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0 });
+  const [saving, setSaving] = useState(false);
 
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -54,7 +59,10 @@ export default function AdminPage() {
       const sData = await sRes.json();
       if (!oData.ok) throw new Error(oData.error || '讀取訂單失敗');
       setOrders(oData.orders);
-      if (sData.ok) setSummary(sData.summary);
+      if (sData.ok) {
+        setSummary(sData.summary);
+        setEmptySlots(sData.slots.filter((s: any) => s.status === 'empty').map((s: any) => s.slotNo));
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -65,6 +73,11 @@ export default function AdminPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // 線種下拉（人工單用）
+  useEffect(() => {
+    fetch('/api/strings').then((r) => r.json()).then((d) => { if (d.ok) setStrings(d.strings); }).catch(() => {});
+  }, []);
 
   async function act(order: OrderItem, action: string) {
     if (action === 'complete' && !window.confirm(`確認客人已取件、完成訂單 ${order.orderNo}？`)) return;
@@ -120,6 +133,35 @@ export default function AdminPage() {
     }
   }
 
+  async function createManual(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stringId: manual.stringId,
+          tension: manual.tension,
+          color: manual.color,
+          note: manual.note,
+          slotNo: manual.slotNo,
+          customerName: '',
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '建立失敗');
+      setShowManual(false);
+      setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0 });
+      await refresh();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const filtered = filter ? orders.filter((o) => o.status === filter) : orders;
   const counts = {
     pending: orders.filter((o) => o.status === 'pending').length,
@@ -142,6 +184,9 @@ export default function AdminPage() {
           <a href="/admin/inventory" style={{ padding: '8px 16px', background: '#06C755', color: '#fff', borderRadius: 10, fontSize: 14, textDecoration: 'none' }}>
             📦 販售庫存
           </a>
+          <button onClick={() => setShowManual((v) => !v)} style={{ padding: '8px 16px', background: '#06C755', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+            ＋ 人工單
+          </button>
           <button onClick={refresh} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
             ↻ 重新整理
           </button>
@@ -164,6 +209,28 @@ export default function AdminPage() {
         <Stat label="已完成" value={counts.done} color="#9ca3af" />
         <Stat label="空置格口" value={`${summary.empty} / ${summary.total}`} color="#06C755" />
       </div>
+
+      {showManual && (
+        <form onSubmit={createManual} style={{ marginTop: 16, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 10 }}>＋ 人工單（臨櫃／寄物：自選格子＋備註）</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select value={manual.stringId} onChange={(e) => setManual({ ...manual, stringId: Number(e.target.value) })} style={inp}>
+              <option value={0}>選線種（寄物可選任一）</option>
+              {strings.map((s) => <option key={s.id} value={s.id}>{s.model}</option>)}
+            </select>
+            <input type="number" value={manual.tension} onChange={(e) => setManual({ ...manual, tension: Number(e.target.value) })} style={{ ...inp, width: 70 }} title="磅數" />
+            <input placeholder="備註（鞋／包裹／臨時寄放…）" value={manual.note} onChange={(e) => setManual({ ...manual, note: e.target.value })} style={{ ...inp, width: 210 }} />
+            <select value={manual.slotNo} onChange={(e) => setManual({ ...manual, slotNo: Number(e.target.value) })} style={inp}>
+              <option value={0}>自選格子</option>
+              {emptySlots.map((n) => <option key={n} value={n}>第 {n} 格</option>)}
+            </select>
+            <button type="submit" disabled={saving || !manual.stringId || !manual.slotNo} style={{ padding: '8px 16px', background: '#06C755', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: (manual.stringId && manual.slotNo) ? 'pointer' : 'default', opacity: (manual.stringId && manual.slotNo) ? 1 : 0.5 }}>
+              {saving ? '建立中…' : '建立＋印貼紙＋開格'}
+            </button>
+            <button type="button" onClick={() => setShowManual(false)} style={{ padding: '8px 12px', background: '#eee', color: '#666', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>取消</button>
+          </div>
+        </form>
+      )}
 
       {error && (
         <div style={{ marginTop: 16, background: '#fee', border: '1px solid #fcc', borderRadius: 12, padding: 12, color: '#c33' }}>
@@ -271,3 +338,5 @@ function ActionBtn({ onClick, disabled, color, label }: { onClick: () => void; d
     </button>
   );
 }
+
+const inp: React.CSSProperties = { padding: '8px 10px', fontSize: 14, borderRadius: 8, border: '1px solid #ddd', boxSizing: 'border-box' };
