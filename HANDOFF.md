@@ -6,6 +6,44 @@
 
 ---
 
+---
+
+## 本期重點（2026-08-28）
+
+### 1. RS-485 鎖控板串接成功 ✅（重大突破）
+- 實體鎖控板（UPUS-SKB，V3.0+ 協議）已通：E2 開鎖指令實測板子正確應答。
+- USB-485 轉接頭＝CH340，Win10 kiosk 上是 **COM3**（9600-N-8-1）。
+- poller `kiosk-print-poller.ps1` 開鎖改**直接對 COM3 送 RS-485 幀**（預設 `-SerialPort COM3`；`none`＝走模擬橋）。另加 `test-serial.ps1`（單次開鎖測試）、`rs485-test-create.mjs`（建測試列印工作）。
+- 實測：`TX 55A101E2010117 → RX 55 A1 01 E2 02 01 00 14`（板子應答正常）。
+- 門磁 A0 回報**尚未接**：接線＝鎖+→VCC、鎖-→GND、信號→OUT；E0 寫配置把「上傳控制位」設 1/2 才會推 A0（門開/門關事件）。
+
+### 2. Kiosk 環境（Win10 鎖定 Chrome 全螢幕）
+- 自動登入：`admin` / `123456`（登錄檔 `AutoAdminLogon` 等，開機直進桌面）。
+- Chrome kiosk：`--kiosk --lang=zh-TW --disable-features=TranslateUI --disable-context-menu --no-first-run --disable-session-crashed-bubble --overscroll-history-navigation=0 --disable-pinch`，獨立 `--user-data-dir=C:\Users\Admin\kiosk-profile`。
+- Shell Launcher：`HKLM\...\Winlogon\Shell` → `C:\kiosk\kiosk-shell.bat`（.bat 會開 cmd 黑窗；用 .vbs + wscript 可免黑窗，但 Winlogon 帶參數的 shell 有時不穩）。
+- 開機自動：Startup `kiosk-chrome.bat` + 排程 `KioskChrome`（onlogon）；背景 poller 排程 `KioskPrintPoller`。
+- ⚠️ 跳出全螢幕：`Alt+F4`；還原桌面 shell：`C:\kiosk\revert-shell.ps1`（Shell 改回 `explorer.exe`）後重開機。
+- ⚠️ 已移除 kiosk 雜物自動啟動/解除安裝：金山毒霸、微信、360(sesvc)、抖音、Opera、夸克。
+
+### 3. Demo／開發環境（三套環境）
+- **smartlocker**：正式 `shop.dearfly.com.tw`；網外 demo `demo.dearfly.com.tw`（後台 demo1234）；本機 `~/Desktop/projects/code/smartlocker-demo`（localhost:3000）。
+- **booking**：正式 `dearfly.com.tw`；網外 demo `booking-demo.dearfly.com.tw`（admin@difly.tw / demo1234，登入 /account/login）；本機 `~/Desktop/projects/code/booking-demo`（localhost:3001，SQLite 離線）。
+- 兩套 demo 都**獨立 Neon DB + 獨立 Vercel 專案**，隨便增刪查不碰正式。
+- 一鍵：工作站 Dashboard 已加「🔐 智慧拍櫃 Web」「🏸 羽球場預約」＋各資料夾 `🚀 啟動…command`。
+- Vercel 坑：新專案 Framework Preset 要改 `nextjs`；SSO 部署保護要 `protection disable --sso`；子網域 `vercel domains add <sub>.<domain> <project>` 後在第三方 DNS 加 CNAME。
+
+### 4. 後台「＋人工單」（臨櫃／寄物）
+- 後台 `/admin` 綠色「＋人工單」：線種＋磅數＋**名字**＋**會員ID/電話**＋**備註**＋**自選格子**。
+- `createOrder` 支援 `slotNo`（指定格口 → 直接佔格＋建 print_job＋通知＋開鎖）。
+- 用途：臨櫃空單、寄物（鞋/包裹/臨時寄放，備註欄）。
+
+### 5. 其他 UI／修復
+- 線種上架/停售開關（新增+編輯都顯示）、`/order` 物流式 4 階段進度條、favicon（移除 Vercel）、右下角版權宣告＋SEQO、後台深色模式字色修正。
+- vending 空庫 bug：`ON CONFLICT (venue_id, sku)` ＋ `min_qty` 欄位（`ensureVendingSchema` 補上）。
+- `docs/販售庫存使用教材.md`（白話教學）。
+
+---
+
 ## 本期重點（2026-08-23）
 
 ### 1. 標籤印表機 GP-3120TN — 已定稿 ✅
