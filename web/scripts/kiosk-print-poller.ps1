@@ -1,11 +1,13 @@
-﻿# kiosk-print-poller.ps1 — poll print-jobs → print label (print-label.ps1) → open slot → mark done
+# kiosk-print-poller.ps1 — poll print-jobs → print label (print-label.ps1) → open slot → mark done
 # Runs on the Win10 kiosk (no node needed). Base URL = deployed backend.
 param(
   [string]$Base = "https://shop.dearfly.com.tw",
   [string]$Store = "太平永成店",
   [string]$StoreEn = "Pai store",
   [string]$Printer = "Gprinter GP-3120TN",
-  [string]$LockBridge = "http://192.168.0.178:4321",  # mock board (sim). Real kiosk: point to SkbBridge or RS-485.
+  [string]$LockBridge = "http://192.168.0.178:4321",  # mock board (sim). 模擬橋（SerialPort 設 none 才用）
+  [string]$SerialPort = "COM3",                        # 實體鎖控板 USB-485 串口；設 "" 或 none = 走模擬橋
+  [int]$Baud = 9600,                                   # RS-485 預設 9600-N-8-1
   [int]$IntervalMs = 3000,
   [switch]$Once,                                        # run one pass and exit (demo/verification)
   [switch]$NoPrint                                      # 印表機拿走時設此開關 → 略過列印(其餘照常)
@@ -14,19 +16,42 @@ param(
 $ScriptFile = Join-Path $PSScriptRoot "print-label.ps1"
 
 function Send-Unlock([int]$slotNo) {
-  try {
-    # build frame: 55 A1 addr func=0xE2 len=1 data=slotNo + XOR
-    $addr = 1
-    $bytes = @(0x55, 0xA1, $addr, 0xE2, 1, $slotNo)
-    $xor = 0
-    foreach ($b in $bytes) { $xor = $xor -bxor $b }
-    $bytes = $bytes + @($xor -band 0xFF)
-    $hex = ($bytes | ForEach-Object { $_.ToString("X2") }) -join ""
-    $body = @{ hex = $hex } | ConvertTo-Json
-    Invoke-RestMethod -Method POST -Uri "$LockBridge/rs485" -Body $body -ContentType "application/json" -TimeoutSec 5 | Out-Null
-    Write-Host "  [開格] 格$slotNo → TX $hex"
-  } catch {
-    Write-Host "  [開格] 格$slotNo 失敗: $($_.Exception.Message)"
+  # build frame: 55 A1 addr func=0xE2 len=1 data=slotNo + XOR
+  $addr = 1
+  $bytes = @(0x55, 0xA1, $addr, 0xE2, 1, $slotNo)
+  $xor = 0
+  foreach ($b in $bytes) { $xor = $xor -bxor $b }
+  $frame = $bytes + @($xor -band 0xFF)
+  $hex = ($frame | ForEach-Object { $_.ToString("X2") }) -join ""
+
+  $useSerial = -not [string]::IsNullOrEmpty($SerialPort) -and ($SerialPort -ine "none")
+  if ($useSerial) {
+    # 實體鎖控板：直接對 COM 送 RS-485 幀＋讀回應
+    $sp = New-Object System.IO.Ports.SerialPort($SerialPort, $Baud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
+    try {
+      $sp.ReadTimeout = 1000
+      $sp.WriteTimeout = 1000
+      $sp.Open()
+      $sp.Write([byte[]]$frame, 0, $frame.Count)
+      Start-Sleep -Milliseconds 300
+      $rx = New-Object System.Collections.Generic.List[byte]
+      while ($sp.BytesToRead -gt 0) { $rx.Add([byte]$sp.ReadByte()) }
+      $rxHex = ($rx | ForEach-Object { $_.ToString("X2") }) -join " "
+      Write-Host "  [開格] 格$slotNo → $SerialPort TX $hex  RX $rxHex"
+    } catch {
+      Write-Host "  [開格] 格$slotNo 串口失敗($SerialPort@$Baud): $($_.Exception.Message)"
+    } finally {
+      if ($sp.IsOpen) { $sp.Close() }
+    }
+  } else {
+    # 模擬橋：HTTP /rs485（測試用，SerialPort 設 none 才走這條）
+    try {
+      $body = @{ hex = $hex } | ConvertTo-Json
+      Invoke-RestMethod -Method POST -Uri "$LockBridge/rs485" -Body $body -ContentType "application/json" -TimeoutSec 5 | Out-Null
+      Write-Host "  [開格] 格$slotNo → TX $hex"
+    } catch {
+      Write-Host "  [開格] 格$slotNo 失敗: $($_.Exception.Message)"
+    }
   }
 }
 
