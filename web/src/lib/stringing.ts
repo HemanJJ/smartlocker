@@ -485,21 +485,85 @@ export async function listOrders(status?: OrderStatus): Promise<OrderItem[]> {
   return rows.map((r: any) => rowToOrder(r));
 }
 
-/** 後台「會員索引搜尋」：用名字或電話模糊搜尋歷史客人（去重、最新在前）。 */
-export async function searchCustomers(q: string): Promise<string[]> {
+/** 會員索引搜尋結果：名字／電話／LINE 身份三者任一命中。 */
+export interface CustomerHit {
+  name: string;       // 名字（手寫單）或 LINE 顯示名
+  phone: string;      // 電話（手寫單有）
+  lineUserId: string; // LINE user id（LINE 會員有）
+}
+
+/** 後台「會員索引搜尋」：名字、電話、LINE 顯示名／會員ID 任一命中（去重、最新在前）。 */
+export async function searchCustomers(q: string): Promise<CustomerHit[]> {
   await ensureStringingSchema();
   const sql = getDb();
   const kw = `%${(q || '').trim()}%`;
   if (kw === '%%') return [];
-  const rows = await sql`
+
+  const hits: CustomerHit[] = [];
+  const seen = new Set<string>();
+
+  // 1) 手寫單客人：customer_name = 「名字 · 電話」
+  const manual = await sql`
     SELECT customer_name, MAX(id) AS max_id
     FROM orders
     WHERE customer_name <> '' AND customer_name ILIKE ${kw}
     GROUP BY customer_name
     ORDER BY max_id DESC
-    LIMIT 8
+    LIMIT 10
   `;
-  return rows.map((r: any) => String(r.customer_name));
+  for (const r of manual) {
+    const merged = String(r.customer_name);
+    const idx = merged.indexOf(' · ');
+    const name = (idx >= 0 ? merged.slice(0, idx) : '').trim();
+    const phone = (idx >= 0 ? merged.slice(idx + 3) : merged).trim();
+    const key = phone ? `p:${phone}` : `n:${name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    hits.push({ name, phone, lineUserId: '' });
+  }
+
+  // 2) LINE 會員：line_name／line_user_id
+  const line = await sql`
+    SELECT line_name, line_user_id, MAX(id) AS max_id
+    FROM orders
+    WHERE line_name <> '' AND (line_name ILIKE ${kw} OR line_user_id ILIKE ${kw})
+    GROUP BY line_name, line_user_id
+    ORDER BY max_id DESC
+    LIMIT 10
+  `;
+  for (const r of line) {
+    const lineUserId = String(r.line_user_id || '');
+    if (!lineUserId || seen.has(`u:${lineUserId}`)) continue;
+    seen.add(`u:${lineUserId}`);
+    hits.push({ name: String(r.line_name), phone: '', lineUserId });
+  }
+
+  return hits;
+}
+
+/** 該會員最近的消費紀錄（依電話或 LINE 身份），最新在前。 */
+export async function listCustomerOrders(opts: { phone?: string; lineUserId?: string }): Promise<OrderItem[]> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  let rows: any[];
+  if (opts.lineUserId) {
+    rows = await sql`
+      SELECT o.*, s.model AS string_model
+      FROM orders o JOIN strings s ON s.id = o.string_id
+      WHERE o.line_user_id = ${opts.lineUserId}
+      ORDER BY o.id DESC LIMIT 10
+    `;
+  } else if (opts.phone) {
+    rows = await sql`
+      SELECT o.*, s.model AS string_model
+      FROM orders o JOIN strings s ON s.id = o.string_id
+      WHERE o.customer_name ILIKE ${'%' + opts.phone + '%'}
+      ORDER BY o.id DESC LIMIT 10
+    `;
+  } else {
+    return [];
+  }
+  return rows.map((r: any) => rowToOrder(r));
 }
 
 export async function listMineOrders(lineUserId: string): Promise<OrderItem[]> {

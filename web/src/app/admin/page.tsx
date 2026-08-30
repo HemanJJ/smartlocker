@@ -20,6 +20,12 @@ interface OrderItem {
   completedAt: string | null;
 }
 
+interface CustomerHit {
+  name: string;
+  phone: string;
+  lineUserId: string;
+}
+
 const STATUS_LABEL: Record<OrderItem['status'], string> = {
   pending: '待收件',
   stringing: '穿線中',
@@ -45,7 +51,9 @@ export default function AdminPage() {
   const [emptySlots, setEmptySlots] = useState<number[]>([]);
   const [showManual, setShowManual] = useState(false);
   const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
-  const [customerMatches, setCustomerMatches] = useState<string[]>([]);
+  const [customerMatches, setCustomerMatches] = useState<CustomerHit[]>([]);
+  const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
+  const [historyFor, setHistoryFor] = useState('');
   const [saving, setSaving] = useState(false);
 
   async function logout() {
@@ -147,12 +155,22 @@ export default function AdminPage() {
     }
   }
 
-  function pickCustomer(merged: string) {
-    const idx = merged.indexOf(' · ');
-    const name = idx >= 0 ? merged.slice(0, idx) : '';
-    const contact = idx >= 0 ? merged.slice(idx + 3) : merged;
-    setManual((m) => ({ ...m, name, contact }));
+  async function pickCustomer(hit: CustomerHit) {
+    setManual((m) => ({ ...m, name: hit.name, contact: hit.phone }));
     setCustomerMatches([]);
+    // 帶入該會員最近消費紀錄（依電話或 LINE 身份）
+    const params = hit.lineUserId
+      ? `lineUserId=${encodeURIComponent(hit.lineUserId)}`
+      : `phone=${encodeURIComponent(hit.phone)}`;
+    setHistoryFor(hit.lineUserId ? `${hit.name}（LINE）` : `${hit.name}${hit.phone ? ` · ${hit.phone}` : ''}`);
+    try {
+      const r = await fetch(`/api/customers/orders?${params}`);
+      const d = await r.json();
+      if (d.ok) setRecentOrders(d.orders || []);
+      else setRecentOrders([]);
+    } catch {
+      setRecentOrders([]);
+    }
   }
 
   async function createManual(e: React.FormEvent) {
@@ -177,6 +195,8 @@ export default function AdminPage() {
       setShowManual(false);
       setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
       setCustomerMatches([]);
+      setRecentOrders([]);
+      setHistoryFor('');
       await refresh();
     } catch (e: any) {
       setError(e.message);
@@ -245,12 +265,12 @@ export default function AdminPage() {
             <input type="number" value={manual.tension} onChange={(e) => setManual({ ...manual, tension: Number(e.target.value) })} style={{ ...inp, width: 70 }} title="磅數" placeholder="磅" />
             <input placeholder="名字" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} style={{ ...inp, width: 110 }} />
             <div style={{ position: 'relative' }}>
-              <input placeholder="會員ID／電話（可搜尋）" value={manual.contact} onChange={(e) => { setManual({ ...manual, contact: e.target.value }); searchCustomer(e.target.value); }} style={{ ...inp, width: 180 }} />
+              <input placeholder="名字／電話／LINE 搜尋" value={manual.contact} onChange={(e) => { setManual({ ...manual, contact: e.target.value }); searchCustomer(e.target.value); }} style={{ ...inp, width: 190 }} />
               {customerMatches.length > 0 && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 20, background: '#fff', border: '1px solid #ddd', borderRadius: 8, width: 260, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.12)' }}>
+                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 20, background: '#fff', border: '1px solid #ddd', borderRadius: 8, width: 280, maxHeight: 220, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.12)' }}>
                   {customerMatches.map((c) => (
-                    <button key={c} type="button" onClick={() => pickCustomer(c)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', fontSize: 13, color: '#333' }}>
-                      {c}
+                    <button key={c.lineUserId || c.phone || c.name} type="button" onClick={() => pickCustomer(c)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', fontSize: 13, color: '#333' }}>
+                      {c.name}{c.phone ? ` · ${c.phone}` : ''}{c.lineUserId ? ' · LINE' : ''}
                     </button>
                   ))}
                 </div>
@@ -266,6 +286,27 @@ export default function AdminPage() {
             </button>
             <button type="button" onClick={() => setShowManual(false)} style={{ padding: '8px 12px', background: '#eee', color: '#666', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>取消</button>
           </div>
+          {historyFor && (
+            <div style={{ marginTop: 12, background: '#f7f9f8', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>📋 {historyFor} 最近消費紀錄</div>
+              {recentOrders.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#999' }}>沒有歷史消費紀錄。</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {recentOrders.map((o) => (
+                    <div key={o.id} style={{ display: 'flex', gap: 10, fontSize: 12, color: '#555', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'monospace' }}>{o.createdAt.slice(0, 10)}</span>
+                      <span style={{ fontWeight: 600, color: '#333' }}>{o.stringModel}</span>
+                      <span>{o.tension > 0 ? `${o.tension} lbs` : '寄物'}</span>
+                      <span>NT${o.price}</span>
+                      <span style={{ color: STATUS_COLOR[o.status] }}>{STATUS_LABEL[o.status]}</span>
+                      <span style={{ fontFamily: 'monospace', color: '#06C755' }}>{o.pickupCode}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </form>
       )}
 
