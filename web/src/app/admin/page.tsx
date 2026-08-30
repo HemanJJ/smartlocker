@@ -45,6 +45,7 @@ export default function AdminPage() {
   const [emptySlots, setEmptySlots] = useState<number[]>([]);
   const [showManual, setShowManual] = useState(false);
   const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
+  const [customerMatches, setCustomerMatches] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   async function logout() {
@@ -133,6 +134,27 @@ export default function AdminPage() {
     }
   }
 
+  async function searchCustomer(q: string) {
+    const t = q.trim();
+    if (!t) { setCustomerMatches([]); return; }
+    try {
+      const r = await fetch(`/api/customers/search?q=${encodeURIComponent(t)}`);
+      const d = await r.json();
+      if (d.ok) setCustomerMatches(d.customers || []);
+      else setCustomerMatches([]);
+    } catch {
+      setCustomerMatches([]);
+    }
+  }
+
+  function pickCustomer(merged: string) {
+    const idx = merged.indexOf(' · ');
+    const name = idx >= 0 ? merged.slice(0, idx) : '';
+    const contact = idx >= 0 ? merged.slice(idx + 3) : merged;
+    setManual((m) => ({ ...m, name, contact }));
+    setCustomerMatches([]);
+  }
+
   async function createManual(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -147,13 +169,14 @@ export default function AdminPage() {
           color: manual.color,
           note: manual.note,
           slotNo: manual.slotNo,
-          customerName: (manual.name + (manual.contact ? ` · ${manual.contact}` : '')).trim(),
+          customerName: [manual.name.trim(), manual.contact.trim()].filter(Boolean).join(' · '),
         }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '建立失敗');
       setShowManual(false);
       setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
+      setCustomerMatches([]);
       await refresh();
     } catch (e: any) {
       setError(e.message);
@@ -212,22 +235,34 @@ export default function AdminPage() {
 
       {showManual && (
         <form onSubmit={createManual} style={{ marginTop: 16, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 16 }}>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>＋ 人工單（臨櫃／寄物：自選格子＋備註）</div>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>＋ 人工單（臨櫃／寄物：自選格子＋備註）</div>
+          <div style={{ fontSize: 12, color: '#999', marginBottom: 10 }}>💡 除「自選格子」外皆為選填：只選格子即可直接開櫃（寄物／快速收件）；穿線單請補線種＋磅數。</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <select value={manual.stringId} onChange={(e) => setManual({ ...manual, stringId: Number(e.target.value) })} style={inp}>
-              <option value={0}>選線種（寄物可選任一）</option>
+              <option value={0}>線種（不選＝寄物／快速開櫃）</option>
               {strings.map((s) => <option key={s.id} value={s.id}>{s.model}</option>)}
             </select>
-            <input type="number" value={manual.tension} onChange={(e) => setManual({ ...manual, tension: Number(e.target.value) })} style={{ ...inp, width: 70 }} title="磅數" />
+            <input type="number" value={manual.tension} onChange={(e) => setManual({ ...manual, tension: Number(e.target.value) })} style={{ ...inp, width: 70 }} title="磅數" placeholder="磅" />
             <input placeholder="名字" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} style={{ ...inp, width: 110 }} />
-            <input placeholder="會員ID／電話" value={manual.contact} onChange={(e) => setManual({ ...manual, contact: e.target.value })} style={{ ...inp, width: 140 }} />
+            <div style={{ position: 'relative' }}>
+              <input placeholder="會員ID／電話（可搜尋）" value={manual.contact} onChange={(e) => { setManual({ ...manual, contact: e.target.value }); searchCustomer(e.target.value); }} style={{ ...inp, width: 180 }} />
+              {customerMatches.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 20, background: '#fff', border: '1px solid #ddd', borderRadius: 8, width: 260, maxHeight: 200, overflow: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,.12)' }}>
+                  {customerMatches.map((c) => (
+                    <button key={c} type="button" onClick={() => pickCustomer(c)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', borderBottom: '1px solid #f0f0f0', cursor: 'pointer', fontSize: 13, color: '#333' }}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <input placeholder="備註（鞋／包裹／臨時寄放…）" value={manual.note} onChange={(e) => setManual({ ...manual, note: e.target.value })} style={{ ...inp, width: 210 }} />
             <select value={manual.slotNo} onChange={(e) => setManual({ ...manual, slotNo: Number(e.target.value) })} style={inp}>
               <option value={0}>自選格子</option>
               {emptySlots.map((n) => <option key={n} value={n}>第 {n} 格</option>)}
             </select>
-            <button type="submit" disabled={saving || !manual.stringId || !manual.slotNo} style={{ padding: '8px 16px', background: '#06C755', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: (manual.stringId && manual.slotNo) ? 'pointer' : 'default', opacity: (manual.stringId && manual.slotNo) ? 1 : 0.5 }}>
-              {saving ? '建立中…' : '建立＋印貼紙＋開格'}
+            <button type="submit" disabled={saving || !manual.slotNo} style={{ padding: '8px 16px', background: '#06C755', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: manual.slotNo ? 'pointer' : 'default', opacity: manual.slotNo ? 1 : 0.5 }}>
+              {saving ? '建立中…' : manual.stringId ? '建立＋印貼紙＋開格' : '寄物／快速開格'}
             </button>
             <button type="button" onClick={() => setShowManual(false)} style={{ padding: '8px 12px', background: '#eee', color: '#666', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>取消</button>
           </div>

@@ -27,6 +27,9 @@ node_modules/
 # Claude
 .claude/
 
+# DSH 工作區記憶／本機狀態（不入版）
+.dsh/
+
 # Next.js web project
 web/.next/
 web/node_modules/

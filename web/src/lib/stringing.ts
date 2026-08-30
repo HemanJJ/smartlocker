@@ -94,6 +94,9 @@ const STRING_SEED: Array<[string, string, string, number, number]> = [
   ['BG80-2', '0.68mm', '—', 28, 350],
 ];
 
+// 寄物／快速開櫃用的內部隱藏線種（is_active=FALSE，不進客人選單、線種管理、任何 UI）
+const STORAGE_MODEL = '寄物';
+
 // ── Schema 初始化（惰性 + 每個 instance 只跑一次）────────────────────────
 
 let ensurePromise: Promise<void> | null = null;
@@ -309,8 +312,8 @@ export async function listStrings(activeOnly = true): Promise<StringItem[]> {
   await ensureStringingSchema();
   const sql = getDb();
   const rows = activeOnly
-    ? await sql`SELECT * FROM strings WHERE is_active = TRUE ORDER BY id`
-    : await sql`SELECT * FROM strings ORDER BY id`;
+    ? await sql`SELECT * FROM strings WHERE is_active = TRUE AND model <> ${STORAGE_MODEL} ORDER BY id`
+    : await sql`SELECT * FROM strings WHERE model <> ${STORAGE_MODEL} ORDER BY id`;
   return rows.map(rowToString);
 }
 
@@ -482,6 +485,23 @@ export async function listOrders(status?: OrderStatus): Promise<OrderItem[]> {
   return rows.map((r: any) => rowToOrder(r));
 }
 
+/** 後台「會員索引搜尋」：用名字或電話模糊搜尋歷史客人（去重、最新在前）。 */
+export async function searchCustomers(q: string): Promise<string[]> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const kw = `%${(q || '').trim()}%`;
+  if (kw === '%%') return [];
+  const rows = await sql`
+    SELECT customer_name, MAX(id) AS max_id
+    FROM orders
+    WHERE customer_name <> '' AND customer_name ILIKE ${kw}
+    GROUP BY customer_name
+    ORDER BY max_id DESC
+    LIMIT 8
+  `;
+  return rows.map((r: any) => String(r.customer_name));
+}
+
 export async function listMineOrders(lineUserId: string): Promise<OrderItem[]> {
   await ensureStringingSchema();
   const sql = getDb();
@@ -509,6 +529,20 @@ export async function getLatestOrderByLineUser(lineUserId: string): Promise<Orde
 
 // ── 建立訂單（kiosk 下單）──────────────────────────────────────────────
 
+/** 取回（必要時建立）寄物／快速開櫃用的隱藏線種。 */
+async function getStorageString(): Promise<any> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const existing = await sql`SELECT * FROM strings WHERE model = ${STORAGE_MODEL}`;
+  if (existing.length) return existing[0];
+  await sql`
+    INSERT INTO strings (model, gauge, feature, max_tension, price, colors, is_active)
+    VALUES (${STORAGE_MODEL}, '', '寄物/臨時寄放', 0, 0, '', FALSE)
+    ON CONFLICT (model) DO NOTHING
+  `;
+  return (await sql`SELECT * FROM strings WHERE model = ${STORAGE_MODEL}`)[0];
+}
+
 export async function createOrder(input: {
   stringId: number;
   tension: number;
@@ -521,19 +555,33 @@ export async function createOrder(input: {
   await ensureStringingSchema();
   const sql = getDb();
 
-  const stringItem = await getString(input.stringId);
-  if (!stringItem) throw new Error('線種不存在或已停用');
+  // stringId = 0（或未傳）＝ 寄物／快速開櫃：不驗線種、磅數、顏色，走「寄物」隱藏線種。
+  const isStorage = !input.stringId || Number(input.stringId) === 0;
 
-  const tension = Number(input.tension);
-  if (!Number.isInteger(tension) || tension < 1) throw new Error('磅數無效');
-  if (tension > stringItem.maxTension) {
-    throw new Error(`「${stringItem.model}」磅數上限為 ${stringItem.maxTension} lbs`);
+  let stringItem: any;
+  let model: string;
+  if (isStorage) {
+    stringItem = await getStorageString();
+    model = STORAGE_MODEL;
+  } else {
+    const s = await getString(input.stringId);
+    if (!s) throw new Error('線種不存在或已停用');
+    stringItem = s;
+    model = s.model;
   }
 
-  // 顏色：不指定（''）或必須在該線種的可用色內
-  const color = (input.color || '').trim();
-  if (color && stringItem.colors.length > 0 && !stringItem.colors.includes(color)) {
-    throw new Error(`「${stringItem.model}」無此顏色「${color}」`);
+  const tension = isStorage ? 0 : Number(input.tension);
+  if (!isStorage) {
+    if (!Number.isInteger(tension) || tension < 1) throw new Error('磅數無效');
+    if (tension > stringItem.maxTension) {
+      throw new Error(`「${model}」磅數上限為 ${stringItem.maxTension} lbs`);
+    }
+  }
+
+  // 顏色：不指定（''）或必須在該線種的可用色內（寄物不選色）
+  const color = isStorage ? '' : (input.color || '').trim();
+  if (!isStorage && color && stringItem.colors.length > 0 && !stringItem.colors.includes(color)) {
+    throw new Error(`「${model}」無此顏色「${color}」`);
   }
 
   // 產生不重複 6 位取件碼
@@ -571,7 +619,7 @@ export async function createOrder(input: {
     RETURNING *
   `;
 
-  const order = rowToOrder(inserted[0], stringItem.model);
+  const order = rowToOrder(inserted[0], model);
 
   if (manualSlot != null) {
     await occupySpecificSlot(manualSlot, order.id);
