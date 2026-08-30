@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 interface OrderItem {
   id: number;
   orderNo: string;
+  stringId: number;
   stringModel: string;
   tension: number;
   price: number;
@@ -173,6 +174,16 @@ export default function AdminPage() {
     }
   }
 
+  function fillFromOrder(o: OrderItem) {
+    // 點消費紀錄 → 帶入線種＋磅數（寄物單跳過線種；已停售線種不帶）
+    const validString = o.stringId && o.tension > 0 && strings.some((s) => s.id === o.stringId);
+    setManual((m) => ({
+      ...m,
+      stringId: validString ? o.stringId : m.stringId,
+      tension: validString ? o.tension : m.tension,
+    }));
+  }
+
   async function createManual(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -288,20 +299,22 @@ export default function AdminPage() {
           </div>
           {historyFor && (
             <div style={{ marginTop: 12, background: '#f7f9f8', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>📋 {historyFor} 最近消費紀錄</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>📋 {historyFor} 最近消費紀錄</div>
+              <div style={{ fontSize: 11, color: '#999', marginBottom: 6 }}>點任一筆 → 自動帶入線種＋磅數</div>
               {recentOrders.length === 0 ? (
                 <div style={{ fontSize: 12, color: '#999' }}>沒有歷史消費紀錄。</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {recentOrders.map((o) => (
-                    <div key={o.id} style={{ display: 'flex', gap: 10, fontSize: 12, color: '#555', flexWrap: 'wrap' }}>
+                    <button key={o.id} type="button" onClick={() => fillFromOrder(o)} style={{ display: 'flex', gap: 10, fontSize: 12, color: '#555', flexWrap: 'wrap', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: '4px 6px', borderRadius: 6, alignItems: 'center' }}>
                       <span style={{ fontFamily: 'monospace' }}>{o.createdAt.slice(0, 10)}</span>
                       <span style={{ fontWeight: 600, color: '#333' }}>{o.stringModel}</span>
                       <span>{o.tension > 0 ? `${o.tension} lbs` : '寄物'}</span>
                       <span>NT${o.price}</span>
                       <span style={{ color: STATUS_COLOR[o.status] }}>{STATUS_LABEL[o.status]}</span>
                       <span style={{ fontFamily: 'monospace', color: '#06C755' }}>{o.pickupCode}</span>
-                    </div>
+                      <span style={{ color: '#06C755', fontWeight: 600 }}>＋帶入</span>
+                    </button>
                   ))}
                 </div>
               )}
