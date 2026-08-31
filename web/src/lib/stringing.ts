@@ -675,10 +675,11 @@ export async function createOrder(input: {
     if (chk[0].status !== 'empty') throw new Error(`格口 ${manualSlot} 已佔用`);
   }
 
-  // kiosk 下單：只建單不配格（綁定 LINE 後才佔格）。人工單：直接佔指定格＋印貼紙。
+  // kiosk 下單：只建單不配格（綁定 LINE 後才佔格）→ pending 待收件。
+  // 人工單：有指定格口＝拍已穿好線/寄物，直接入櫃待取件 → ready＋開格＋印貼紙。
   const inserted = await sql`
     INSERT INTO orders (order_no, string_id, color, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
-    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, 'pending', FALSE,
+    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, ${manualSlot != null ? 'ready' : 'pending'}, FALSE,
             ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, ${manualSlot})
     RETURNING *
   `;
@@ -687,6 +688,7 @@ export async function createOrder(input: {
 
   if (manualSlot != null) {
     await occupySpecificSlot(manualSlot, order.id);
+    await queueOpenCell(manualSlot); // 開格門，員工直接放入再關門
     const labelData = JSON.stringify({
       orderNo: order.orderNo, pickupCode: order.pickupCode, model: order.stringModel,
       color: order.color, tension: order.tension, price: order.price, slotNo: manualSlot, note: order.note || '',
@@ -1067,16 +1069,18 @@ async function notifyStaffNewOrder(order: OrderItem): Promise<void> {
     console.warn('[Stringing] 未設定 STAFF_LINE_USER_ID，略過員工新單通知');
     return;
   }
+  const isReady = order.status === 'ready';
+  const itemLabel = order.tension > 0 ? `${order.stringModel}（${order.tension} lbs）` : `${order.stringModel}（寄物/臨時寄放）`;
   const text =
-    `🧵 新穿線單！\n\n` +
+    `${isReady ? '📦 新入櫃單（待取件）' : '🧵 新穿線單！'}\n\n` +
     `單號：${order.orderNo}\n` +
-    `線種：${order.stringModel}（${order.tension} lbs）\n` +
+    `線種：${itemLabel}\n` +
     `顏色：${order.color || '不指定'}\n` +
     `費用：NT$${order.price}\n` +
     `取件碼：${order.pickupCode}\n` +
     `格號：第 ${order.currentSlot} 格\n` +
     `${order.customerName ? `客人：${order.customerName}\n` : ''}` +
-    `已分派格口，請前往取拍後開始穿線。`;
+    (isReady ? `已入櫃待取件，請通知客人來取。` : `已分派格口，請前往取拍後開始穿線。`);
   for (const id of staffIds) {
     await pushMessage(id, [{ type: 'text', text }]);
   }
