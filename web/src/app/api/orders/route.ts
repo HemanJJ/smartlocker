@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
       customerName: body.customerName || '',
       note: body.note || '',
       slotNo: body.slotNo != null ? Number(body.slotNo) : undefined,
+      paid: body.paid === true,
     });
     return NextResponse.json({ ok: true, order });
   } catch (err: any) {

@@ -615,6 +615,7 @@ export async function createOrder(input: {
   customerName?: string;
   note?: string;
   slotNo?: number; // 人工單：指定格口（提供就佔該格＋印貼紙）
+  paid?: boolean; // 人工單「已收款」勾選 → 直接建 paid=true
 }): Promise<OrderItem> {
   await ensureStringingSchema();
   const sql = getDb();
@@ -679,7 +680,7 @@ export async function createOrder(input: {
   // 人工單：有指定格口＝拍已穿好線/寄物，直接入櫃待取件 → ready＋開格＋印貼紙。
   const inserted = await sql`
     INSERT INTO orders (order_no, string_id, color, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
-    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, ${manualSlot != null ? 'ready' : 'pending'}, FALSE,
+    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, ${manualSlot != null ? 'ready' : 'pending'}, ${input.paid === true},
             ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, ${manualSlot})
     RETURNING *
   `;

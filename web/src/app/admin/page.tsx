@@ -51,7 +51,7 @@ export default function AdminPage() {
   const [strings, setStrings] = useState<{ id: number; model: string; maxTension: number; colors: string[] }[]>([]);
   const [emptySlots, setEmptySlots] = useState<number[]>([]);
   const [showManual, setShowManual] = useState(false);
-  const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
+  const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '', paid: false });
   const [customerMatches, setCustomerMatches] = useState<CustomerHit[]>([]);
   const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
   const [historyFor, setHistoryFor] = useState('');
@@ -198,13 +198,14 @@ export default function AdminPage() {
           color: manual.color,
           note: manual.note,
           slotNo: manual.slotNo,
+          paid: manual.paid,
           customerName: [manual.name.trim(), manual.contact.trim()].filter(Boolean).join(' · '),
         }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '建立失敗');
       setShowManual(false);
-      setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '' });
+      setManual({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '', paid: false });
       setCustomerMatches([]);
       setRecentOrders([]);
       setHistoryFor('');
@@ -292,6 +293,10 @@ export default function AdminPage() {
               <option value={0}>自選格子</option>
               {emptySlots.map((n) => <option key={n} value={n}>第 {n} 格</option>)}
             </select>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              <input type="checkbox" checked={manual.paid} onChange={(e) => setManual({ ...manual, paid: e.target.checked })} style={{ width: 18, height: 18, cursor: 'pointer' }} />
+              ✅ 已收款
+            </label>
             <button type="submit" disabled={saving || !manual.slotNo} style={{ padding: '8px 16px', background: '#06C755', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: manual.slotNo ? 'pointer' : 'default', opacity: manual.slotNo ? 1 : 0.5 }}>
               {saving ? '建立中…' : manual.stringId ? '建立＋印貼紙＋開格' : '寄物／快速開格'}
             </button>
