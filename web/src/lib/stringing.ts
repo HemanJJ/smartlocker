@@ -765,6 +765,17 @@ export async function queueOpenCell(slotNo: number): Promise<void> {
   await sql`INSERT INTO cell_commands (slot_no) VALUES (${slotNo})`;
 }
 
+/** 一鍵全開（後台測試用）：把「所有格口」排入開格指令 → kiosk poller 依序 E2 開鎖。 */
+export async function queueOpenAllSlots(): Promise<number> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const slots = await sql`SELECT slot_no FROM locker_slots ORDER BY slot_no`;
+  for (const s of slots) {
+    await sql`INSERT INTO cell_commands (slot_no) VALUES (${s.slot_no})`;
+  }
+  return slots.length;
+}
+
 export async function listCellCommands(status: 'pending' | 'done' = 'pending'): Promise<CellCommand[]> {
   await ensureStringingSchema();
   const sql = getDb();

@@ -143,6 +143,19 @@ export default function AdminPage() {
     }
   }
 
+  async function openAll() {
+    if (!window.confirm('確定「一鍵全開」所有格口？（kiosk 將依序開鎖，測試/檢修用）')) return;
+    setError('');
+    try {
+      const res = await fetch('/api/cell-commands/open-all', { method: 'POST' });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '一鍵全開失敗');
+      window.alert(`✅ 已排入 ${data.queued} 格開格指令，kiosk poller 將依序開鎖`);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   async function searchCustomer(q: string) {
     const t = q.trim();
     if (!t) { setCustomerMatches([]); return; }
@@ -247,6 +260,9 @@ export default function AdminPage() {
           </button>
           <button onClick={resetAll} style={{ padding: '8px 16px', background: '#e5484d', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
             🗑️ 清空測試資料
+          </button>
+          <button onClick={openAll} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+            🔓 一鍵全開
           </button>
           <a href="/admin/password" style={{ padding: '8px 16px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 13, textDecoration: 'none' }}>
             🔑 改密碼
