@@ -88,7 +88,7 @@ export default function OrderPage() {
   useEffect(() => {
     if (bound) {
       playVoice('anon-order'); // 請依櫃號，將球拍放入櫃中
-      setTimeout(() => playVoice('wait-open'), 2600); // 0.6s後播「請等待五秒櫃門開啟」
+      setTimeout(() => playVoice('wait-open'), 2950); // anon-order(2.85s)播完後再播「請等待五秒櫃門開啟」
     }
   }, [bound]);
 
