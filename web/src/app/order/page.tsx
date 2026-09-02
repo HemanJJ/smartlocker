@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import KioskShell from '@/components/KioskShell';
 
 // Kiosk 版穿線下單：流程/邏輯/欄位與原版完全相同（不增不減）
@@ -69,9 +69,17 @@ export default function OrderPage() {
   }
 
   // kiosk 語音（走網頁 <audio>，任何裝置都能播；wav 在 /kiosk-voice/）
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   function playVoice(name: string) {
     try {
+      // 先停掉上一段音訊，避免新一輪語音與上一輪重疊
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
       const a = new Audio(`/kiosk-voice/${name}.wav`);
+      audioRef.current = a;
       void a.play().catch(() => {});
     } catch {}
   }
