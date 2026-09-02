@@ -37,7 +37,7 @@ type Screen = 'brand' | 'line' | 'tension' | 'confirm';
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
 const WAIT_BIND_SECONDS = 120; // 會員未綁定 LINE 的等待秒數，逾時作廢訂單並回下單頁
-const DONE_SECONDS = 4;       // 綁定成功後顯示確認的秒數，自動回下單頁
+const DONE_SECONDS = 14;       // 綁定成功後顯示確認的秒數（含放拍時間），自動回下單頁；語音 ~5s 播完，留 9s 放拍
 
 export default function OrderPage() {
   const [strings, setStrings] = useState<StringItem[]>([]);
