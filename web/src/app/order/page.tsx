@@ -83,10 +83,13 @@ export default function OrderPage() {
     else if (screen === 'confirm') playVoice('guide-step3');
   }, [screen]);
 
-  // 綁定完成 → 放拍語音（此時已有櫃號）
+  // 綁定完成 → 放拍語音（此時已有櫃號）＋ 請等待櫃門開啟
   const bound = result?.lineUserId;
   useEffect(() => {
-    if (bound) playVoice('anon-order'); // 請依櫃號，將球拍放入櫃中
+    if (bound) {
+      playVoice('anon-order'); // 請依櫃號，將球拍放入櫃中
+      setTimeout(() => playVoice('wait-open'), 2600); // 0.6s後播「請等待五秒櫃門開啟」
+    }
   }, [bound]);
 
   async function voidOrder(id: number) {
