@@ -70,15 +70,24 @@ export default function OrderPage() {
 
   // kiosk 語音（走網頁 <audio>，任何裝置都能播；wav 在 /kiosk-voice/）
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  function playVoice(name: string) {
+  function playVoice(name: string, after?: () => void) {
     try {
       // 先停掉上一段音訊，避免新一輪語音與上一輪重疊
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
+        audioRef.current.onended = null;
         audioRef.current = null;
       }
       const a = new Audio(`/kiosk-voice/${name}.wav`);
+      if (after) {
+        let fired = false;
+        const run = () => { if (!fired) { fired = true; after(); } };
+        a.onended = run; // 等本段播完再播下一段
+        // 備援：若音訊載入/播放失敗導致 onended 不觸發，仍於預估時長後播下一段
+        const dur = isFinite(a.duration) ? a.duration * 1000 : 16000;
+        setTimeout(run, dur + 1200);
+      }
       audioRef.current = a;
       void a.play().catch(() => {});
     } catch {}
@@ -91,12 +100,11 @@ export default function OrderPage() {
     else if (screen === 'confirm') playVoice('guide-step3');
   }, [screen]);
 
-  // 綁定完成 → 放拍語音（此時已有櫃號）＋ 請等待櫃門開啟
+  // 綁定完成 → 放拍語音（此時已有櫃號）＋ 等它播完再接「櫃門馬上為您開啟」
   const bound = result?.lineUserId;
   useEffect(() => {
     if (bound) {
-      playVoice('anon-order'); // 請依櫃號，將球拍放入櫃中
-      setTimeout(() => playVoice('wait-open'), 2950); // anon-order(2.85s)播完後再播「請等待五秒櫃門開啟」
+      playVoice('anon-order', () => playVoice('wait-open')); // 等 anon-order 播完再播 wait-open
     }
   }, [bound]);
 
