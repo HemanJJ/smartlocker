@@ -9,6 +9,7 @@ interface OrderItem {
   stringModel: string;
   tension: number;
   price: number;
+  budget: number | null;
   pickupCode: string;
   status: 'pending' | 'stringing' | 'ready' | 'done';
   paid: boolean;
@@ -48,7 +49,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [strings, setStrings] = useState<{ id: number; model: string; maxTension: number; colors: string[] }[]>([]);
+  const [strings, setStrings] = useState<{ id: number; model: string; maxTension: number; price: number; colors: string[] }[]>([]);
   const [emptySlots, setEmptySlots] = useState<number[]>([]);
   const [showManual, setShowManual] = useState(false);
   const [manual, setManual] = useState({ stringId: 0, tension: 24, color: '', note: '', slotNo: 0, name: '', contact: '', paid: false });
@@ -56,6 +57,10 @@ export default function AdminPage() {
   const [recentOrders, setRecentOrders] = useState<OrderItem[]>([]);
   const [historyFor, setHistoryFor] = useState('');
   const [saving, setSaving] = useState(false);
+  // 預算單 → 指派線種+磅數
+  const [assignTarget, setAssignTarget] = useState<OrderItem | null>(null);
+  const [assignStringId, setAssignStringId] = useState(0);
+  const [assignTension, setAssignTension] = useState(24);
 
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -123,6 +128,29 @@ export default function AdminPage() {
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '開格失敗');
       alert(`已排入「開第 ${order.currentSlot} 格」指令，kiosk 輪詢後會開鎖。`);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  // 指派預算單 → 具體線種+磅數
+  async function assignSubmit() {
+    if (!assignTarget) return;
+    if (!assignStringId) { setError('請選線種'); return; }
+    setBusyId(assignTarget.id);
+    setError('');
+    try {
+      const res = await fetch(`/api/orders/${assignTarget.id}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stringId: assignStringId, tension: assignTension }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '指派失敗');
+      setAssignTarget(null);
+      await refresh();
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -380,7 +408,7 @@ export default function AdminPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 <div>
                   <span style={{ fontWeight: 700, fontSize: 16 }}>{o.orderNo}</span>
-                  <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>{o.stringModel} · {o.tension} lbs</span>
+                  <span style={{ marginLeft: 8, fontSize: 14, color: '#666' }}>{o.budget != null ? `${o.stringModel} · 預算 NT$${o.budget}` : `${o.stringModel} · ${o.tension} lbs`}</span>
                 </div>
                 <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, background: STATUS_COLOR[o.status] + '22', color: STATUS_COLOR[o.status] }}>
                   {STATUS_LABEL[o.status]}{o.paid ? ' · 已付款' : ''}
@@ -421,9 +449,39 @@ export default function AdminPage() {
                 {o.status !== 'done' && (
                   <ActionBtn onClick={() => act(o, 'cancel')} disabled={busyId === o.id} color="#e5484d" label="取消訂單" />
                 )}
+                {o.budget != null && (
+                  <ActionBtn onClick={() => { setAssignTarget(o); setAssignStringId(strings[0]?.id || 0); setAssignTension(24); }} disabled={busyId === o.id} color="#7c3aed" label="指派線種" />
+                )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 指派預算單彈窗 */}
+      {assignTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '24px 28px', width: 'min(420px, 92vw)', maxHeight: '86vh', overflow: 'auto' }}>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>指派線種 · {assignTarget.orderNo}</div>
+            <div style={{ fontSize: 14, color: '#666', marginBottom: 14 }}>預算 NT${assignTarget.budget}，選好線種與磅數後即變為一般單。</div>
+
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#666', marginBottom: 4 }}>線種</div>
+            <select value={assignStringId} onChange={(e) => setAssignStringId(Number(e.target.value))} style={{ width: '100%', padding: 12, border: '2px solid #ddd', borderRadius: 10, fontSize: 16, background: '#fff' }}>
+              {strings.map((s) => (
+                <option key={s.id} value={s.id}>{s.model}（NT${s.price}，上限 {s.maxTension} 磅）</option>
+              ))}
+            </select>
+
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#666', margin: '14px 0 4px' }}>磅數</div>
+            <input type="number" value={assignTension} onChange={(e) => setAssignTension(Number(e.target.value))} min={1} style={{ width: '100%', padding: 12, border: '2px solid #ddd', borderRadius: 10, fontSize: 16, boxSizing: 'border-box' }} />
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setAssignTarget(null)} style={{ flex: 1, padding: '14px 0', borderRadius: 12, border: 'none', background: '#f0f0f0', color: '#666', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>取消</button>
+              <button onClick={assignSubmit} disabled={busyId === assignTarget.id || !assignStringId} style={{ flex: 2, padding: '14px 0', borderRadius: 12, border: 'none', background: (busyId === assignTarget.id || !assignStringId) ? '#ccc' : '#7c3aed', color: '#fff', fontSize: 16, fontWeight: 700, cursor: (busyId === assignTarget.id || !assignStringId) ? 'default' : 'pointer' }}>
+                {busyId === assignTarget.id ? '指派中…' : '確認指派'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

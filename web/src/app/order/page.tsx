@@ -26,6 +26,7 @@ interface OrderItem {
   color: string;
   tension: number;
   price: number;
+  budget: number | null;
   pickupCode: string;
   currentSlot: number | null;
   status: string;
@@ -33,7 +34,17 @@ interface OrderItem {
   lineName: string;
 }
 
-type Screen = 'brand' | 'line' | 'tension' | 'confirm';
+type Mode = 'self' | 'budget' | null;
+type Screen = 'brand' | 'line' | 'tension' | 'confirm' | 'budget';
+
+// 預算單：客人只挑價位範圍；線種/磅數由球場後台依預算指派
+const BUDGET_PRESETS = [
+  { label: 'NT$250–300', price: 300 },
+  { label: 'NT$301–350', price: 350 },
+  { label: 'NT$351–400', price: 400 },
+  { label: 'NT$401–450', price: 450 },
+  { label: 'NT$450+', price: 500 },
+];
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
 const WAIT_BIND_SECONDS = 120; // 會員未綁定 LINE 的等待秒數，逾時作廢訂單並回下單頁
@@ -55,6 +66,8 @@ export default function OrderPage() {
   const [tensionFocus, setTensionFocus] = useState(false); // 磅數框選中時亮框
   const [color, setColor] = useState(''); // 顏色（''＝不指定）
   const [confirmingAbandon, setConfirmingAbandon] = useState(false); // 放棄此單 二次確認
+  const [mode, setMode] = useState<Mode>(null); // null=入口未選; 'self'=自己選線; 'budget'=只選預算
+  const [selectedBudget, setSelectedBudget] = useState<number | null>(null); // 選中的預算金額
 
   function reset() {
     setResult(null);
@@ -65,6 +78,8 @@ export default function OrderPage() {
     setWaitSeconds(WAIT_BIND_SECONDS);
     setDoneSeconds(DONE_SECONDS);
     setConfirmingAbandon(false);
+    setMode(null);
+    setSelectedBudget(null);
     setScreen('brand');
   }
 
@@ -93,12 +108,19 @@ export default function OrderPage() {
     } catch {}
   }
 
-  // 引導用語：選線種（品牌/線種）→ 選磅數 → 確認下單
+  // 引導用語：入口(選方式) → 選預算 → 選線種 → 選磅數 → 確認
   useEffect(() => {
+    if (mode === null) { playVoice('voice-entry'); return; } // 入口：請問怎麼選
+    if (mode === 'budget') {
+      if (screen === 'budget') playVoice('voice-budget'); // 選預算
+      else if (screen === 'confirm') playVoice('guide-step3');
+      return;
+    }
+    // 自己選線
     if (screen === 'brand' || screen === 'line') playVoice('guide-step1');
     else if (screen === 'tension') playVoice('guide-step2');
     else if (screen === 'confirm') playVoice('guide-step3');
-  }, [screen]);
+  }, [screen, mode]);
 
   // 綁定完成 → 放拍語音（此時已有櫃號）＋ 等它播完再接「櫃門馬上為您開啟」
   const bound = result?.lineUserId;
@@ -243,6 +265,30 @@ export default function OrderPage() {
     }
   }
 
+  // 預算單下單：只存預算，線種/磅數由球場後台依預算指派
+  async function submitBudget() {
+    if (selectedBudget == null) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stringId: 0, tension: 0, color: '', customerName: '', note, budget: selectedBudget }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || '下單失敗');
+      setResult(data.order);
+      setWaitSeconds(WAIT_BIND_SECONDS);
+      setDoneSeconds(DONE_SECONDS);
+      playVoice('anon-bind'); // 綁定提醒
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   // ── 結果畫面（原版內容不增不減，字級放大） ──
   if (result) {
     return (
@@ -262,7 +308,7 @@ export default function OrderPage() {
           ) : (
             <div style={{ color: '#c90', fontSize: 14, marginTop: 4 }}>綁定 LINE 後自動分配格口</div>
           )}
-          <div style={{ color: '#999', fontSize: 14, marginTop: 2 }}>{result.stringModel}{result.color ? ` · ${result.color}` : ''} · {result.tension} lbs · NT${result.price}</div>
+          <div style={{ color: '#999', fontSize: 14, marginTop: 2 }}>{result.budget != null ? `${result.stringModel} · NT$${result.price}` : `${result.stringModel}${result.color ? ` · ${result.color}` : ''} · ${result.tension} lbs · NT$${result.price}`}</div>
         </div>
 
         {result.lineUserId ? (
@@ -308,7 +354,12 @@ export default function OrderPage() {
   }
 
   // ── 品牌分組、一框無滑 drill-down ──
-  const stepNum = { brand: 1, line: 2, tension: 3, confirm: 4 }[screen];
+  const steps = mode === 'budget'
+    ? [{ icon: '💰', label: '選預算' }, { icon: '✅', label: '確認' }]
+    : [{ icon: '🏸', label: '選品牌' }, { icon: '🧵', label: '選線種' }, { icon: '⚖️', label: '選磅數' }, { icon: '✅', label: '確認' }];
+  const stepNum = mode === 'budget'
+    ? ({ budget: 1, confirm: 2 } as Record<string, number>)[screen] ?? 0
+    : ({ brand: 1, line: 2, tension: 3, confirm: 4 } as Record<string, number>)[screen] ?? 0;
 
   return (
     <KioskShell>
@@ -318,7 +369,7 @@ export default function OrderPage() {
         <a href="/" style={{ display: 'inline-block', fontSize: 17, fontWeight: 700, color: '#06C755', textDecoration: 'none' }}>🏠 主選單</a>
       </div>
       <h1 style={{ fontSize: '2rem', fontWeight: 800, color: '#06C755' }}>🏸 羽拍穿線下單</h1>
-      <StepTracker step={stepNum} />
+      {mode !== null && <StepTracker steps={steps} step={stepNum} />}
 
       {loading && <p style={{ marginTop: 24, color: '#999' }}>載入線種中…</p>}
 
@@ -338,8 +389,74 @@ export default function OrderPage() {
       {!loading && strings.length > 0 && !result && (
         <div style={{ marginTop: 20 }}>
 
-          {/* ① 選品牌 */}
-          {screen === 'brand' && (
+          {/* 入口：選方式（自己選線 vs 只選預算） */}
+          {mode === null && (
+            <div style={{ textAlign: 'center' }}>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>您想怎麼選線？</h2>
+              <p style={{ fontSize: 15, color: '#888', marginBottom: 22 }}>不熟線種沒關係，交給專業的我們</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 560, margin: '0 auto' }}>
+                <button onClick={() => { setMode('budget'); setScreen('budget'); }} style={{ background: '#06C755', color: '#fff', border: 'none', borderRadius: 20, padding: '26px 20px', fontSize: 22, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(6,199,85,.25)' }}>
+                  💰 只選預算（不知道線種）
+                </button>
+                <button onClick={() => { setMode('self'); setScreen('brand'); }} style={{ background: '#fff', color: '#333', border: '2px solid #ddd', borderRadius: 20, padding: '26px 20px', fontSize: 22, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: 0.75 }}>
+                  🧵 我自己選線
+                </button>
+              </div>
+              <p style={{ fontSize: 14, color: '#aaa', marginTop: 20 }}>選預算 → 球場依預算幫您配最合適的線與磅數</p>
+            </div>
+          )}
+
+          {/* 選預算（只選預算路） */}
+          {mode === 'budget' && screen === 'budget' && (
+            <div style={{ textAlign: 'center' }}>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>請問您的預算大約多少？</h2>
+              <p style={{ fontSize: 15, color: '#888', marginBottom: 20 }}>交給羽拍有約，幫您配到最超值、最好打</p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {BUDGET_PRESETS.map((p) => (
+                  <button key={p.price} onClick={() => { setSelectedBudget(p.price); setScreen('confirm'); }} style={{ background: '#fff', border: '2px solid #ddd', borderRadius: 16, padding: '20px 26px', fontSize: 22, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', color: '#333' }}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ marginTop: 22 }}>
+                <button onClick={() => { setMode(null); setScreen('brand'); }} style={{ ...navBtn, background: '#f0f0f0', color: '#666', maxWidth: 240, margin: '0 auto' }}>← 返回 選方式</button>
+              </div>
+              <p style={{ fontSize: 14, color: '#10b981', marginTop: 18 }}>✅ 不用懂線種！選好預算，專業拍師傅會依預算為您搭配最合適的線材與磅數。</p>
+            </div>
+          )}
+
+          {/* 預算確認（只選預算路） */}
+          {mode === 'budget' && screen === 'confirm' && (
+            <div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請確認訂單</h2>
+              <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 18, padding: 24, fontSize: 22, lineHeight: 1.9, textAlign: 'center' }}>
+                <div>預算 NT$<b style={{ color: '#06C755', fontSize: 28 }}>{selectedBudget}</b></div>
+                <div style={{ color: '#888', fontSize: 17, marginTop: 6 }}>線種與磅數：由球場依預算搭配</div>
+              </div>
+
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: '20px 0 8px' }}>選填（可不填）</h2>
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="例：兩支拍／加厚握把／拆舊線（選填）"
+                style={{ width: '100%', padding: 16, border: '2px solid #ddd', borderRadius: 14, fontSize: 20, boxSizing: 'border-box', background: '#fff', color: '#333' }}
+              />
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+                <button onClick={() => setScreen('budget')} style={{ ...navBtn, background: '#f0f0f0', color: '#666' }}>← 上一步</button>
+                <button
+                  onClick={submitBudget}
+                  disabled={selectedBudget == null || submitting}
+                  style={{ ...navBtn, flex: 2, background: (selectedBudget == null || submitting) ? '#ccc' : '#06C755', color: '#fff', cursor: (selectedBudget == null || submitting) ? 'default' : 'pointer' }}
+                >
+                  {submitting ? '處理中…' : `確認下單 · NT$${selectedBudget}`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ① 選品牌（自己選線） */}
+          {mode === 'self' && screen === 'brand' && (
             <div>
               <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請選擇線種品牌</h2>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -357,7 +474,7 @@ export default function OrderPage() {
           )}
 
           {/* ② 選線種（該品牌 grid） */}
-          {screen === 'line' && (
+          {mode === 'self' && screen === 'line' && (
             <div>
               <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請選擇線種 · {brand === 'ALL' ? '全部線種' : `${brand} 系列`}</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 14 }}>
@@ -383,7 +500,7 @@ export default function OrderPage() {
           )}
 
           {/* ③ 選磅數＋顏色 */}
-          {screen === 'tension' && selected && (
+          {mode === 'self' && screen === 'tension' && selected && (
             <div>
               <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請選擇磅數 · {selected.model}</h2>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
@@ -424,7 +541,7 @@ export default function OrderPage() {
           )}
 
           {/* ④ 選填＋確認下單 */}
-          {screen === 'confirm' && selected && (
+          {mode === 'self' && screen === 'confirm' && selected && (
             <div>
               <h2 style={{ fontSize: 26, fontWeight: 800, marginBottom: 18 }}>請確認訂單</h2>
               <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 18, padding: 24, fontSize: 22, lineHeight: 1.9 }}>
@@ -485,18 +602,11 @@ const navBtn: React.CSSProperties = {
   border: 'none', borderRadius: 14,
 };
 
-// 物流式步驟進度條：4 階段，已完成打勾、當前亮綠、後段灰
-const STEPS = [
-  { icon: '🏸', label: '選品牌' },
-  { icon: '🧵', label: '選線種' },
-  { icon: '⚖️', label: '選磅數' },
-  { icon: '✅', label: '確認' },
-];
-
-function StepTracker({ step }: { step: number }) {
+// 物流式步驟進度條：已完成打勾、當前亮綠、後段灰
+function StepTracker({ steps, step }: { steps: { icon: string; label: string }[]; step: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', margin: '14px 0 4px' }}>
-      {STEPS.map((s, i) => {
+      {steps.map((s, i) => {
         const n = i + 1;
         const done = step > n;
         const active = step === n;

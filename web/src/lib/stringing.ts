@@ -33,6 +33,7 @@ export interface OrderItem {
   color: string;
   tension: number;
   price: number;
+  budget: number | null;
   pickupCode: string;
   status: OrderStatus;
   paid: boolean;
@@ -96,6 +97,7 @@ const STRING_SEED: Array<[string, string, string, number, number]> = [
 
 // 寄物／快速開櫃用的內部隱藏線種（is_active=FALSE，不進客人選單、線種管理、任何 UI）
 const STORAGE_MODEL = '寄物';
+const BUDGET_MODEL = '預算配線';
 
 // ── Schema 初始化（惰性 + 每個 instance 只跑一次）────────────────────────
 
@@ -155,6 +157,7 @@ export function ensureStringingSchema(): Promise<void> {
       await sql`ALTER TABLE strings ADD COLUMN IF NOT EXISTS colors VARCHAR(255) NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE strings ADD COLUMN IF NOT EXISTS brand VARCHAR(30) NOT NULL DEFAULT ''`;
       await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS color VARCHAR(40) NOT NULL DEFAULT ''`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS budget INTEGER`;
 
       await sql`
         CREATE TABLE IF NOT EXISTS print_jobs (
@@ -289,10 +292,11 @@ function rowToOrder(row: any, modelOverride?: string): OrderItem {
     id: Number(row.id),
     orderNo: row.order_no,
     stringId: Number(row.string_id),
-    stringModel: modelOverride || row.string_model || '',
+    stringModel: row.budget != null ? BUDGET_MODEL : (modelOverride || row.string_model || ''),
     color: row.color || '',
     tension: Number(row.tension),
     price: Number(row.price ?? 0),
+    budget: row.budget == null ? null : Number(row.budget),
     pickupCode: row.pickup_code,
     status: row.status,
     paid: Boolean(row.paid),
@@ -616,18 +620,22 @@ export async function createOrder(input: {
   note?: string;
   slotNo?: number; // 人工單：指定格口（提供就佔該格＋印貼紙）
   paid?: boolean; // 人工單「已收款」勾選 → 直接建 paid=true
+  budget?: number; // 預算單：客人只選預算，線種/磅數由球場後台指派
 }): Promise<OrderItem> {
   await ensureStringingSchema();
   const sql = getDb();
 
   // stringId = 0（或未傳）＝ 寄物／快速開櫃：不驗線種、磅數、顏色，走「寄物」隱藏線種。
   const isStorage = !input.stringId || Number(input.stringId) === 0;
+  // 預算單：只挑預算，線種/磅數留空（stringId=0），由球場後台依預算指派
+  const isBudget = input.budget != null && Number(input.budget) > 0;
+  const budget = isBudget ? Number(input.budget) : null;
 
   let stringItem: any;
   let model: string;
   if (isStorage) {
     stringItem = await getStorageString();
-    model = STORAGE_MODEL;
+    model = isBudget ? BUDGET_MODEL : STORAGE_MODEL;
   } else {
     const s = await getString(input.stringId);
     if (!s) throw new Error('線種不存在或已停用');
@@ -642,6 +650,7 @@ export async function createOrder(input: {
       throw new Error(`「${model}」磅數上限為 ${stringItem.maxTension} lbs`);
     }
   }
+  const price = isBudget ? budget : stringItem.price;
 
   // 顏色：不指定（''）或必須在該線種的可用色內（寄物不選色）
   const color = isStorage ? '' : (input.color || '').trim();
@@ -679,8 +688,8 @@ export async function createOrder(input: {
   // kiosk 下單：只建單不配格（綁定 LINE 後才佔格）→ pending 待收件。
   // 人工單：有指定格口＝拍已穿好線/寄物，直接入櫃待取件 → ready＋開格＋印貼紙。
   const inserted = await sql`
-    INSERT INTO orders (order_no, string_id, color, tension, price, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
-    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${stringItem.price}, ${pickupCode}, ${manualSlot != null ? 'ready' : 'pending'}, ${input.paid === true},
+    INSERT INTO orders (order_no, string_id, color, tension, price, budget, pickup_code, status, paid, line_user_id, customer_name, note, current_slot)
+    VALUES (${orderNo}, ${stringItem.id}, ${color}, ${tension}, ${price}, ${budget}, ${pickupCode}, ${manualSlot != null ? 'ready' : 'pending'}, ${input.paid === true},
             ${input.lineUserId || ''}, ${input.customerName || ''}, ${input.note || ''}, ${manualSlot})
     RETURNING *
   `;
@@ -906,6 +915,27 @@ export async function transitionOrder(id: number, action: string): Promise<Order
   }
 
   return updated;
+}
+
+// ── 後台：預算單 → 指派具體線種+磅數 ────────────────────────────────────
+
+/** 把「預算單」指派成具體線種+磅數（清掉 budget，改存真實線種/磅數/價格） */
+export async function assignOrderString(id: number, stringId: number, tension: number): Promise<OrderItem> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const order = await getOrderById(id);
+  if (!order) throw new Error('訂單不存在');
+  if (order.budget == null) throw new Error('此單非預算單，無需指派');
+  const s = await getString(stringId);
+  if (!s) throw new Error('線種不存在或已停用');
+  const t = Number(tension);
+  if (!Number.isInteger(t) || t < 1) throw new Error('磅數無效');
+  if (t > s.maxTension) throw new Error(`「${s.model}」磅數上限為 ${s.maxTension} lbs`);
+  const updated = await sql`
+    UPDATE orders SET string_id = ${s.id}, tension = ${t}, price = ${s.price}, budget = NULL
+    WHERE id = ${id} RETURNING *
+  `;
+  return rowToOrder(updated[0]);
 }
 
 // ── 客人取件（kiosk 取件頁：掃碼／輸入取件碼 → 開格）──────────────────

@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
       note: body.note || '',
       slotNo: body.slotNo != null ? Number(body.slotNo) : undefined,
       paid: body.paid === true,
+      budget: body.budget != null ? Number(body.budget) : undefined,
     });
     return NextResponse.json({ ok: true, order });
   } catch (err: any) {
