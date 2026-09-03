@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import KioskAds from "@/components/KioskAds";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <KioskAds />
         <div
           style={{
             position: 'fixed',
