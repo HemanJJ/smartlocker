@@ -37,13 +37,13 @@ interface OrderItem {
 type Mode = 'self' | 'budget' | null;
 type Screen = 'brand' | 'line' | 'tension' | 'confirm' | 'budget';
 
-// 預算單：客人只挑價位範圍；線種/磅數由球場後台依預算指派
+// 預算單：客人只挑一個精準價位；線種/磅數由球場後台依預算指派
 const BUDGET_PRESETS = [
-  { label: 'NT$250–300', price: 300 },
-  { label: 'NT$301–350', price: 350 },
-  { label: 'NT$351–400', price: 400 },
-  { label: 'NT$401–450', price: 450 },
-  { label: 'NT$450+', price: 500 },
+  { label: 'NT$250', price: 250 },
+  { label: 'NT$300', price: 300 },
+  { label: 'NT$350', price: 350 },
+  { label: 'NT$400', price: 400 },
+  { label: 'NT$450', price: 450 },
 ];
 
 const LINE_BOT_ID = process.env.NEXT_PUBLIC_LINE_BOT_ID || '@014uppgb';
