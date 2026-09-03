@@ -203,6 +203,17 @@ export function ensureStringingSchema(): Promise<void> {
         )
       `;
 
+      // 後台操作 log：登入/一鍵全開/清空等，責任追蹤用
+      await sql`
+        CREATE TABLE IF NOT EXISTS admin_logs (
+          id SERIAL PRIMARY KEY,
+          action VARCHAR(40) NOT NULL,
+          operator VARCHAR(60) NOT NULL DEFAULT '',
+          detail VARCHAR(255) NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_pickup_code ON orders(pickup_code)`;
       await sql`CREATE INDEX IF NOT EXISTS idx_orders_line_user_id ON orders(line_user_id)`;
@@ -783,6 +794,47 @@ export async function queueOpenAllSlots(): Promise<number> {
     await sql`INSERT INTO cell_commands (slot_no) VALUES (${s.slot_no})`;
   }
   return slots.length;
+}
+
+// ── 後台操作 log（責任追蹤）───────────────────────────────────────────
+
+/** 今日（台灣時區 UTC+8）的 MMDD 4 碼，如 0903。 */
+export function taiwanMMDD(): string {
+  const t = new Date(Date.now() + 8 * 3600 * 1000);
+  return String(t.getUTCMonth() + 1).padStart(2, '0') + String(t.getUTCDate()).padStart(2, '0');
+}
+
+/** 記一筆後台操作 log。operator 留空＝系統/後台。 */
+export async function logAdminAction(action: string, operator = '', detail = ''): Promise<void> {
+  try {
+    await ensureStringingSchema();
+    const sql = getDb();
+    await sql`INSERT INTO admin_logs (action, operator, detail) VALUES (${action}, ${operator || ''}, ${detail || ''})`;
+  } catch (e) {
+    console.error('[AdminLog] 寫入失敗:', e);
+  }
+}
+
+export interface AdminLogItem {
+  id: number;
+  action: string;
+  operator: string;
+  detail: string;
+  createdAt: string;
+}
+
+/** 列出最近後台操作 log（最新在前）。 */
+export async function listAdminLogs(limit = 100): Promise<AdminLogItem[]> {
+  await ensureStringingSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT * FROM admin_logs ORDER BY id DESC LIMIT ${limit}`;
+  return rows.map((r: any) => ({
+    id: Number(r.id),
+    action: r.action,
+    operator: r.operator || '',
+    detail: r.detail || '',
+    createdAt: toIso(r.created_at),
+  }));
 }
 
 export async function listCellCommands(status: 'pending' | 'done' = 'pending'): Promise<CellCommand[]> {
