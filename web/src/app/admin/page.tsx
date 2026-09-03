@@ -179,7 +179,7 @@ export default function AdminPage() {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('/api/cell-commands/open-all', {
+      const res = await fetch('/api/admin/open-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ operator: openAllForm.operator, password: openAllForm.password }),

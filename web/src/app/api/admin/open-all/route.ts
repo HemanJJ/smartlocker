@@ -3,7 +3,7 @@ import { queueOpenAllSlots, logAdminAction, taiwanMMDD } from '@/lib/stringing';
 
 export const runtime = 'nodejs';
 
-// POST /api/cell-commands/open-all → 一鍵全開
+// POST /api/admin/open-all → 一鍵全開（受後台 middleware 保護，需先登入）
 // body: { operator: '員工名', password: '今日 MMDD 4 碼（如 0903）' }
 // 多一道手續：密碼＝今日日期，並記入操作 log（誰、何時、開幾格）
 export async function POST(request: NextRequest) {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     await logAdminAction('一鍵全開', operator, `開啟 ${queued} 格`);
     return NextResponse.json({ ok: true, queued });
   } catch (err: any) {
-    console.error('[CellCommands] 一鍵全開失敗:', err);
+    console.error('[AdminOpenAll] 一鍵全開失敗:', err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
