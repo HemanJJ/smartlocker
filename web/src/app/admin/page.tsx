@@ -61,6 +61,10 @@ export default function AdminPage() {
   const [assignTarget, setAssignTarget] = useState<OrderItem | null>(null);
   const [assignStringId, setAssignStringId] = useState(0);
   const [assignTension, setAssignTension] = useState(24);
+  const [showOpenAll, setShowOpenAll] = useState(false);
+  const [openAllPassword, setOpenAllPassword] = useState('');
+  const [showLogs, setShowLogs] = useState(false);
+  const [adminLogs, setAdminLogs] = useState<{ id: number; action: string; operator: string; detail: string; createdAt: string }[]>([]);
 
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -171,17 +175,34 @@ export default function AdminPage() {
     }
   }
 
-  async function openAll() {
-    if (!window.confirm('確定「一鍵全開」所有格口？（kiosk 將依序開鎖，測試/檢修用）')) return;
+  async function submitOpenAll(e: React.FormEvent) {
+    e.preventDefault();
     setError('');
     try {
-      const res = await fetch('/api/cell-commands/open-all', { method: 'POST' });
+      const res = await fetch('/api/admin/open-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: openAllPassword }),
+      });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '一鍵全開失敗');
       window.alert(`✅ 已排入 ${data.queued} 格開格指令，kiosk poller 將依序開鎖`);
+      setShowOpenAll(false);
+      setOpenAllPassword('');
     } catch (e: any) {
       setError(e.message);
     }
+  }
+
+  async function toggleLogs() {
+    if (!showLogs) {
+      try {
+        const r = await fetch('/api/admin/logs');
+        const d = await r.json();
+        if (d.ok) setAdminLogs(d.logs || []);
+      } catch {}
+    }
+    setShowLogs((v) => !v);
   }
 
   async function searchCustomer(q: string) {
@@ -289,8 +310,11 @@ export default function AdminPage() {
           <button onClick={resetAll} style={{ padding: '8px 16px', background: '#e5484d', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
             🗑️ 清空測試資料
           </button>
-          <button onClick={openAll} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+          <button onClick={() => setShowOpenAll((v) => !v)} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
             🔓 一鍵全開
+          </button>
+          <button onClick={toggleLogs} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>
+            📋 操作紀錄
           </button>
           <a href="/admin/password" style={{ padding: '8px 16px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 13, textDecoration: 'none' }}>
             🔑 改密碼
@@ -300,6 +324,40 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {showOpenAll && (
+        <form onSubmit={submitOpenAll} style={{ marginTop: 16, background: '#fff7ed', border: '1px solid #fcd34d', borderRadius: 14, padding: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 4, color: '#b45309' }}>🔓 一鍵全開（所有格口）</div>
+          <div style={{ fontSize: 12, color: '#b45309', marginBottom: 10 }}>⚠️ 會把所有格子排入開格指令。輸入今日日期 4 碼（如 0904）即可，動作會寫入操作紀錄。</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input placeholder="密碼＝今日 4 碼（如 0904）" value={openAllPassword} onChange={(e) => setOpenAllPassword(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{ ...inp, width: 180 }} inputMode="numeric" maxLength={4} autoFocus />
+            <button type="submit" disabled={!/^\d{4}$/.test(openAllPassword)} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: /^\d{4}$/.test(openAllPassword) ? 'pointer' : 'default', opacity: /^\d{4}$/.test(openAllPassword) ? 1 : 0.5 }}>
+              確認全開
+            </button>
+            <button type="button" onClick={() => { setShowOpenAll(false); setOpenAllPassword(''); }} style={{ padding: '8px 12px', background: '#eee', color: '#666', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>取消</button>
+          </div>
+        </form>
+      )}
+
+      {showLogs && (
+        <div style={{ marginTop: 16, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 16 }}>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>📋 操作紀錄（責任追蹤，最新在前）</div>
+          {adminLogs.length === 0 ? (
+            <div style={{ fontSize: 13, color: '#999' }}>尚無操作紀錄。</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflow: 'auto' }}>
+              {adminLogs.map((l) => (
+                <div key={l.id} style={{ display: 'flex', gap: 10, fontSize: 12, color: '#555', padding: '5px 8px', background: '#fafafa', borderRadius: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'monospace' }}>{l.createdAt.replace('T', ' ').slice(0, 16)}</span>
+                  <span style={{ fontWeight: 600, color: '#333' }}>{l.action}</span>
+                  <span>{l.operator || '（系統）'}</span>
+                  {l.detail && <span style={{ color: '#999' }}>{l.detail}</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
         <Stat label="待收件" value={counts.pending} color="#f59e0b" />
