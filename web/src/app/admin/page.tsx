@@ -62,7 +62,7 @@ export default function AdminPage() {
   const [assignStringId, setAssignStringId] = useState(0);
   const [assignTension, setAssignTension] = useState(24);
   const [showOpenAll, setShowOpenAll] = useState(false);
-  const [openAllForm, setOpenAllForm] = useState({ operator: '', password: '' });
+  const [openAllPassword, setOpenAllPassword] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const [adminLogs, setAdminLogs] = useState<{ id: number; action: string; operator: string; detail: string; createdAt: string }[]>([]);
 
@@ -182,13 +182,13 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/open-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ operator: openAllForm.operator, password: openAllForm.password }),
+        body: JSON.stringify({ password: openAllPassword }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || '一鍵全開失敗');
       window.alert(`✅ 已排入 ${data.queued} 格開格指令，kiosk poller 將依序開鎖`);
       setShowOpenAll(false);
-      setOpenAllForm({ operator: '', password: '' });
+      setOpenAllPassword('');
     } catch (e: any) {
       setError(e.message);
     }
@@ -328,14 +328,13 @@ export default function AdminPage() {
       {showOpenAll && (
         <form onSubmit={submitOpenAll} style={{ marginTop: 16, background: '#fff7ed', border: '1px solid #fcd34d', borderRadius: 14, padding: 16 }}>
           <div style={{ fontWeight: 700, marginBottom: 4, color: '#b45309' }}>🔓 一鍵全開（所有格口）</div>
-          <div style={{ fontSize: 12, color: '#b45309', marginBottom: 10 }}>⚠️ 會把所有格子排入開格指令。請填員工姓名＋今日日期 4 碼（如 0903），動作會寫入操作紀錄。</div>
+          <div style={{ fontSize: 12, color: '#b45309', marginBottom: 10 }}>⚠️ 會把所有格子排入開格指令。輸入今日日期 4 碼（如 0904）即可，動作會寫入操作紀錄。</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <input placeholder="員工姓名（誰開的）" value={openAllForm.operator} onChange={(e) => setOpenAllForm({ ...openAllForm, operator: e.target.value })} style={{ ...inp, width: 160 }} />
-            <input placeholder="密碼＝今日 4 碼（如 0903）" value={openAllForm.password} onChange={(e) => setOpenAllForm({ ...openAllForm, password: e.target.value })} style={{ ...inp, width: 180 }} inputMode="numeric" maxLength={4} />
-            <button type="submit" disabled={!openAllForm.operator.trim() || !/^\d{4}$/.test(openAllForm.password)} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: (openAllForm.operator.trim() && /^\d{4}$/.test(openAllForm.password)) ? 'pointer' : 'default', opacity: (openAllForm.operator.trim() && /^\d{4}$/.test(openAllForm.password)) ? 1 : 0.5 }}>
+            <input placeholder="密碼＝今日 4 碼（如 0904）" value={openAllPassword} onChange={(e) => setOpenAllPassword(e.target.value.replace(/\D/g, '').slice(0, 4))} style={{ ...inp, width: 180 }} inputMode="numeric" maxLength={4} autoFocus />
+            <button type="submit" disabled={!/^\d{4}$/.test(openAllPassword)} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: /^\d{4}$/.test(openAllPassword) ? 'pointer' : 'default', opacity: /^\d{4}$/.test(openAllPassword) ? 1 : 0.5 }}>
               確認全開
             </button>
-            <button type="button" onClick={() => { setShowOpenAll(false); setOpenAllForm({ operator: '', password: '' }); }} style={{ padding: '8px 12px', background: '#eee', color: '#666', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>取消</button>
+            <button type="button" onClick={() => { setShowOpenAll(false); setOpenAllPassword(''); }} style={{ padding: '8px 12px', background: '#eee', color: '#666', border: 'none', borderRadius: 10, fontSize: 14, cursor: 'pointer' }}>取消</button>
           </div>
         </form>
       )}

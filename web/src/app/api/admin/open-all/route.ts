@@ -4,8 +4,8 @@ import { queueOpenAllSlots, logAdminAction, taiwanMMDD } from '@/lib/stringing';
 export const runtime = 'nodejs';
 
 // POST /api/admin/open-all → 一鍵全開（受後台 middleware 保護，需先登入）
-// body: { operator: '員工名', password: '今日 MMDD 4 碼（如 0903）' }
-// 多一道手續：密碼＝今日日期，並記入操作 log（誰、何時、開幾格）
+// body: { password: '今日 MMDD 4 碼（如 0904）' }
+// 多一道手續：密碼＝今日日期（台灣時區），並記入操作 log（時間、開幾格）
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
