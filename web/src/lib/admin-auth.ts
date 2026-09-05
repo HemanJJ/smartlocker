@@ -55,6 +55,12 @@ export async function getAdminStaff(token: string | undefined | null): Promise<s
   try { return decodeURIComponent(parts[1]); } catch { return ''; }
 }
 
+/** 從 NextRequest 的 cookie 取登入員工名（request.cookies 會正確解碼，別手動 parse header） */
+export async function getAdminName(req: { cookies: { get(name: string): { value: string } | undefined } }): Promise<string> {
+  const token = req.cookies.get(ADMIN_COOKIE)?.value;
+  return getAdminStaff(token);
+}
+
 export async function isValidAdminToken(token: string | undefined | null): Promise<boolean> {
   if (!token) return false;
   const dot = token.lastIndexOf('.');

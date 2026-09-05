@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { queueOpenAllSlots, logAdminAction, taiwanMMDD } from '@/lib/stringing';
 import { getStaffRole } from '@/lib/staff';
-import { ADMIN_COOKIE, getAdminStaff } from '@/lib/admin-auth';
+import { getAdminName } from '@/lib/admin-auth';
 
 export const runtime = 'nodejs';
 
 // POST /api/admin/open-all → 一鍵全開（受 middleware 保護；僅 admin；密碼=今日 MMDD 4 碼；記名）
 export async function POST(request: NextRequest) {
   try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    const token = cookieHeader
-      .split(';')
-      .map((s) => s.trim())
-      .find((s) => s.startsWith(`${ADMIN_COOKIE}=`))
-      ?.split('=').slice(1).join('=');
-    const operator = await getAdminStaff(token);
+    const operator = await getAdminName(request);
     if (!operator) {
       return NextResponse.json({ ok: false, error: '請先登入' }, { status: 401 });
     }

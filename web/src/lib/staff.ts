@@ -16,7 +16,8 @@ export interface StaffItem {
 let ensurePromise: Promise<void> | null = null;
 
 const SEED_STAFF: { name: string; role: 'admin' | 'staff' }[] = [
-  { name: '王清標', role: 'admin' },
+  { name: '管理員', role: 'admin' },   // MIS/老闆
+  { name: '王清標', role: 'staff' },
   { name: '王小姐', role: 'staff' },
   { name: '謝小姐', role: 'staff' },
   { name: '黃先生', role: 'staff' },
@@ -43,6 +44,9 @@ export function ensureStaffSchema(): Promise<void> {
           ON CONFLICT (name) DO NOTHING
         `;
       }
+      // 修正既有資料：4 位員工一律 staff、管理員一律 admin（避免舊種子把王清標設成 admin）
+      await sql`UPDATE staff SET role = 'staff' WHERE name IN ('王清標','王小姐','謝小姐','黃先生')`;
+      await sql`UPDATE staff SET role = 'admin' WHERE name = '管理員'`;
     })().catch((e) => { ensurePromise = null; throw e; });
   }
   return ensurePromise;
