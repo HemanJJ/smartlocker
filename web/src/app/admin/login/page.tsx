@@ -43,6 +43,7 @@ export default function AdminLoginPage() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          autoComplete="new-password"
           autoFocus
           style={{
             marginTop: 8, width: '100%', padding: '12px 14px', fontSize: 16, borderRadius: 10,

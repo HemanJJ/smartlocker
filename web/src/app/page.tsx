@@ -27,6 +27,8 @@ export default function Home() {
       </p>
       <p style={{ marginTop: 8, color: '#bbb', fontSize: 13 }}>
         <a href="/store" style={{ color: '#bbb', textDecoration: 'none' }}>其他用品</a>
+        <span style={{ margin: '0 10px' }}>·</span>
+        <a href="/admin" style={{ color: '#bbb', textDecoration: 'none' }}>員工後台（櫃台）</a>
       </p>
     </div>
     </KioskShell>

@@ -41,7 +41,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           }}
         >
           <div>© 2026 迪飛羽球館 All Rights Reserved.</div>
-          <div>System by SEQO</div>
+          <div>
+            System by{' '}
+            <a
+              href="https://linebot.my.canva.site/ai-landing-page"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#9ca3af', textDecoration: 'none', pointerEvents: 'auto' }}
+            >
+              SEQO
+            </a>
+          </div>
         </div>
       </body>
     </html>
