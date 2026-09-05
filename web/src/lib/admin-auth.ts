@@ -37,11 +37,22 @@ function b64urlToBuf(s: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export async function makeAdminToken(): Promise<string> {
-  const value = `admin:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
+export async function makeAdminToken(staff?: string): Promise<string> {
+  const staffEnc = staff ? encodeURIComponent(staff) : '';
+  const value = `admin:${staffEnc}:${Date.now().toString(36)}:${Math.random().toString(36).slice(2, 8)}`;
   const key = await hmacKey('sign');
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(value));
   return `${value}.${bufToB64url(sig)}`;
+}
+
+/** 從有效 token 取出登入員工名（無則空字串） */
+export async function getAdminStaff(token: string | undefined | null): Promise<string> {
+  if (!token) return '';
+  if (!(await isValidAdminToken(token))) return '';
+  const value = token.slice(0, token.lastIndexOf('.'));
+  const parts = value.split(':');
+  if (parts.length < 3) return '';
+  try { return decodeURIComponent(parts[1]); } catch { return ''; }
 }
 
 export async function isValidAdminToken(token: string | undefined | null): Promise<boolean> {
