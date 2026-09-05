@@ -99,3 +99,35 @@ export async function changeStaffPin(
   await sql`UPDATE staff SET pin_hash = ${hash}, updated_at = NOW() WHERE id = ${rows[0].id}`;
   return { ok: true };
 }
+
+/** 查某員工角色（admin 才有敏感功能權限） */
+export async function getStaffRole(name: string): Promise<'admin' | 'staff' | null> {
+  await ensureStaffSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT role FROM staff WHERE name = ${name}`;
+  return rows.length === 0 ? null : (rows[0].role as 'admin' | 'staff');
+}
+
+/** 新增員工（預設 PIN 1234） */
+export async function addStaff(name: string, role: 'admin' | 'staff' = 'staff'): Promise<{ ok: boolean; error?: string }> {
+  const n = name.trim();
+  if (!n) return { ok: false, error: '請輸入姓名' };
+  await ensureStaffSchema();
+  const sql = getDb();
+  const exist = await sql`SELECT 1 FROM staff WHERE name = ${n}`;
+  if (exist.length > 0) return { ok: false, error: '此員工已存在' };
+  const hash = await hashPin('1234');
+  await sql`INSERT INTO staff (name, pin_hash, role) VALUES (${n}, ${hash}, ${role})`;
+  return { ok: true };
+}
+
+/** 重置某員工 PIN 為 1234 */
+export async function resetStaffPin(name: string): Promise<{ ok: boolean; error?: string }> {
+  await ensureStaffSchema();
+  const sql = getDb();
+  const rows = await sql`SELECT id FROM staff WHERE name = ${name}`;
+  if (rows.length === 0) return { ok: false, error: '員工不存在' };
+  const hash = await hashPin('1234');
+  await sql`UPDATE staff SET pin_hash = ${hash}, updated_at = NOW() WHERE id = ${rows[0].id}`;
+  return { ok: true };
+}

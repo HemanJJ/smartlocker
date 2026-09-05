@@ -65,6 +65,11 @@ export default function AdminPage() {
   const [openAllPassword, setOpenAllPassword] = useState('');
   const [showLogs, setShowLogs] = useState(false);
   const [adminLogs, setAdminLogs] = useState<{ id: number; action: string; operator: string; detail: string; createdAt: string }[]>([]);
+  const [me, setMe] = useState<{ name: string; role: 'admin' | 'staff' } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/me').then((r) => r.json()).then((d) => { if (d.ok) setMe({ name: d.name, role: d.role }); }).catch(() => {});
+  }, []);
 
   async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' });
@@ -310,15 +315,23 @@ export default function AdminPage() {
           <button onClick={resetAll} style={{ padding: '8px 16px', background: '#e5484d', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>
             🗑️ 清空測試資料
           </button>
-          <button onClick={() => setShowOpenAll((v) => !v)} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+          <button onClick={() => setShowOpenAll((v) => !v)} style={{ padding: '8px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700, display: me?.role === 'admin' ? 'inline-block' : 'none' }}>
             🔓 一鍵全開
           </button>
           <button onClick={toggleLogs} style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>
             📋 操作紀錄
           </button>
+          {me?.role === 'admin' && (
+            <a href="/admin/staff" style={{ padding: '8px 16px', background: '#f0f0f0', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', fontSize: 13, textDecoration: 'none', color: '#333' }}>
+              👥 員工管理
+            </a>
+          )}
           <a href="/admin/password" style={{ padding: '8px 16px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 13, textDecoration: 'none' }}>
-            🔑 改密碼
+            🔑 改我的PIN
           </a>
+          <span style={{ fontSize: 13, color: '#888' }}>
+            {me ? `你好，${me.name}` : ''}
+          </span>
           <button onClick={logout} style={{ padding: '8px 16px', background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: 13 }}>
             登出
           </button>
