@@ -75,6 +75,14 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalizatio
 New-Item -Path 'HKCU:\Control Panel\Desktop' -Force | Out-Null
 Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name ScreenSaveActive -Value '0' -Type String
 
+# ---- 4b) 關閉 Chrome 的 Google 密碼管理/登入同步(避免密碼欄跳出 Google、記憶密碼) ----
+Write-Host '=== 4b) 關閉 Chrome 密碼管理/自動帶入 ===' -ForegroundColor Cyan
+New-Item -Path 'HKLM:\SOFTWARE\Policies\Google\Chrome' -Force | Out-Null
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Google\Chrome' -Name PasswordManagerEnabled -Value 0 -Type DWord
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Google\Chrome' -Name BrowserSignin -Value 0 -Type DWord
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Google\Chrome' -Name AutofillAddressEnabled -Value 0 -Type DWord
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Google\Chrome' -Name AutofillCreditCardEnabled -Value 0 -Type DWord
+
 # ---- 5) 建立排程任務（重跑用 /F 覆蓋） ----
 Write-Host '=== 5) 建立排程任務 ===' -ForegroundColor Cyan
 function New-Task($tn, $sc, $mo, $tr) {
