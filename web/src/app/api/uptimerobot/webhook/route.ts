@@ -4,8 +4,8 @@ import { pushMessage } from '@/lib/line';
 export const runtime = 'nodejs';
 
 // POST /api/uptimerobot/webhook
-// UptimeRobot Alert Contact（Webhook）打過來 → 轉成 LINE 通知（送到 STAFF_LINE_USER_ID(S)）
-// 支援 UptimeRobot 預設的 form-encoded，也支援「Send as JSON」。
+// UptimeRobot 掛站（down）警報 → 轉 LINE，只發給「admin 一人」（UPTIME_ADMIN_USER_ID）。
+// 恢復（up）等其他事件不發。支援 form-encoded 與 JSON 兩種 body。
 export async function POST(request: NextRequest) {
   try {
     let payload: Record<string, string> = {};
@@ -17,29 +17,25 @@ export async function POST(request: NextRequest) {
       payload = (await request.json().catch(() => ({}))) as Record<string, string>;
     }
 
-    const name = payload.monitorFriendlyName || payload.monitorURL || '未知站點';
+    // 只發「掛了」；alertType=1 或 friendly 含 down。up 等其餘事件略過。
     const alertType = String(payload.alertType ?? '');
     const friendly = String(payload.alertTypeFriendlyName ?? '');
-    const details = (payload.alertDetails || '').trim();
-
-    // alertType: 1=down, 2=up, 其他(SSL 等)也照發
     const isDown = alertType === '1' || /down/i.test(friendly);
-    const isUp = alertType === '2' || /up/i.test(friendly);
-    const icon = isDown ? '🔴' : isUp ? '🟢' : '⚠️';
-    const state = isDown ? '掛了' : isUp ? '恢復' : '警報';
-    const text = `${icon} UptimeRobot｜${name} ${state}${details ? `\n${details}` : ''}`.trim();
-
-    const raw = process.env.STAFF_LINE_USER_ID || process.env.STAFF_LINE_USER_IDS || '';
-    const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
-
-    if (ids.length === 0) {
-      console.warn('[UptimeRobot webhook] 無 STAFF_LINE_USER_ID，略過推播');
-      return NextResponse.json({ ok: true, skipped: true });
+    if (!isDown) {
+      return NextResponse.json({ ok: true, skipped: 'not-down' });
     }
-    for (const id of ids) {
-      await pushMessage(id, [{ type: 'text', text }]);
+
+    const name = payload.monitorFriendlyName || payload.monitorURL || '未知站點';
+    const details = (payload.alertDetails || '').trim();
+    const text = `🔴 UptimeRobot｜${name} 掛了${details ? `\n${details}` : ''}`.trim();
+
+    const adminId = (process.env.UPTIME_ADMIN_USER_ID || '').trim();
+    if (!adminId) {
+      console.warn('[UptimeRobot webhook] 未設定 UPTIME_ADMIN_USER_ID，略過');
+      return NextResponse.json({ ok: true, skipped: 'no-admin' });
     }
-    return NextResponse.json({ ok: true, sent: ids.length });
+    await pushMessage(adminId, [{ type: 'text', text }]);
+    return NextResponse.json({ ok: true, sent: 1 });
   } catch (e: any) {
     console.error('[UptimeRobot webhook] 錯誤:', e);
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
