@@ -55,12 +55,12 @@ function Send-Unlock([int]$slotNo) {
   }
 }
 
-# 播放 kiosk 語音（SoundPlayer，非同步不卡流程）。wav 放在 <scripts>\kiosk-voice\
+# 播放 kiosk 語音（SoundPlayer，PlaySync 同步＝播完才接下一段，避免重疊）。wav 放在 <scripts>\kiosk-voice\
 function Play-Sound([string]$name) {
   try {
     $p = Join-Path $PSScriptRoot "kiosk-voice\$name.wav"
     if (Test-Path $p) {
-      (New-Object System.Media.SoundPlayer $p).Play()
+      (New-Object System.Media.SoundPlayer $p).PlaySync()
       Write-Host "  [語音] 🔊 $name"
     }
   } catch { /* 忽略語音錯誤 */ }
@@ -101,6 +101,9 @@ while ($true) {
         $tmp = Join-Path $env:TEMP "label-$($L.pickupCode).json"
         $cfg | ConvertTo-Json | Set-Content -Path $tmp -Encoding UTF8
         Write-Host "[交拍] 單號 $($L.orderNo) 取件碼 $($L.pickupCode) 格$($L.slotNo)"
+        # 印貼紙「前」先播語音：等一下/開櫃 → 貼上去再放入櫃
+        Play-Sound "wait-open"
+        Play-Sound "anon-order"
         if (-not $NoPrint) {
           # 以 CreateNoWindow 真正無視窗執行印貼紙（避免在全螢幕冒 cmd/powershell 黑窗嚇到客人）
           $psi = New-Object System.Diagnostics.ProcessStartInfo
@@ -111,7 +114,6 @@ while ($true) {
           $pp = [System.Diagnostics.Process]::Start($psi)
           $pp.WaitForExit()
         }
-        # 放拍語音由網頁「綁定完成」時播（anon-order + wait-open）；此處不再播，避免與網頁重複
         Send-Unlock ([int]$L.slotNo)
         Invoke-RestMethod -Method POST -Uri "$Base/api/print-jobs/$($job.id)/done" -TimeoutSec 10 | Out-Null
         Write-Host "[交拍] ✓ 完成（$($L.orderNo)，印=$(-not $NoPrint)，開格$($L.slotNo)）"
