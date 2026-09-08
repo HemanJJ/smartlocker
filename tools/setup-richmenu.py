@@ -20,7 +20,7 @@ HEADERS = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json
 RICH_MENU = {
     "size": {"width": 2500, "height": 1686},
     "selected": True,
-    "name": "羽拍有約主選單-v3",
+    "name": "主選單-6格",
     "chatBarText": "開啟選單",
     "areas": [
         {
@@ -37,7 +37,7 @@ RICH_MENU = {
         },
         {
             "bounds": {"x": 1250, "y": 655, "width": 1250, "height": 515},
-            "action": {"type": "uri", "label": "我的訂位", "uri": "https://difly-booking.vercel.app/bookings"}
+            "action": {"type": "uri", "label": "我的訂位", "uri": "https://dearfly.com.tw/bookings"}
         },
         {
             "bounds": {"x": 0, "y": 1170, "width": 1250, "height": 516},
@@ -45,7 +45,7 @@ RICH_MENU = {
         },
         {
             "bounds": {"x": 1250, "y": 1170, "width": 1250, "height": 516},
-            "action": {"type": "message", "label": "聯絡客服", "text": "客服"}
+            "action": {"type": "uri", "label": "聯絡客服", "uri": "https://linebot.my.canva.site/ai-landing-page"}
         }
     ]
 }
