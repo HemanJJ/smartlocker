@@ -122,13 +122,8 @@ export default function OrderPage() {
     else if (screen === 'confirm') playVoice('guide-step3');
   }, [screen, mode]);
 
-  // 綁定完成 → 放拍語音（此時已有櫃號）＋ 等它播完再接「櫃門馬上為您開啟」
-  const bound = result?.lineUserId;
-  useEffect(() => {
-    if (bound) {
-      playVoice('anon-order', () => playVoice('wait-open')); // 等 anon-order 播完再播 wait-open
-    }
-  }, [bound]);
+  // 綁定完成的「等一下開櫃 + 貼上去再放入櫃」語音，改由 kiosk poller 在「印貼紙前」播
+  // （避免網頁與 poller 兩邊同時播造成重音；此處不再播 anon-order/wait-open）
 
   async function voidOrder(id: number) {
     try {
